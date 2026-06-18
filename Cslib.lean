@@ -182,6 +182,9 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Properties
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Size
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.StandardReduction
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.StrongNorm
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.TakahashiSupport
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Takahashi
 public import Cslib.Languages.LambdaCalculus.Named.Untyped.Basic
 public import Cslib.Languages.LambdaCalculus.Named.Untyped.Properties
 public import Cslib.Languages.Mech.Choreography.Basic
