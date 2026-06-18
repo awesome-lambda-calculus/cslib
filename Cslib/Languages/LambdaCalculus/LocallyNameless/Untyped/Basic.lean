@@ -137,6 +137,28 @@ lemma subst_def (m : Term Var) (x : Var) (n : Term Var) : m.subst x n = m[x := n
 
 attribute [scoped grind =] subst_bvar subst_fvar subst_app subst_abs subst_def
 
+/-- Number of constructors of a term. -/
+@[simp, scoped grind]
+def size : Term Var → ℕ
+  | bvar _ => 1
+  | fvar _ => 1
+  | abs t => size t + 1
+  | app t₁ t₂ => size t₁ + size t₂ + 1
+
+
+/-
+Opening by a free variable preserves size.
+-/
+omit [HasFresh Var] [DecidableEq Var] in
+theorem size_openRec_fvar (k : ℕ) (x : Var) (t : Term Var) :
+    size (openRec k (fvar x) t) = size t := by
+    induction t generalizing k <;> grind
+
+omit [HasFresh Var] [DecidableEq Var] in
+@[simp]
+theorem size_open_fvar (x : Var) (t : Term Var) : size (t ^ fvar x) = size t :=
+  size_openRec_fvar 0 x t
+
 end
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
