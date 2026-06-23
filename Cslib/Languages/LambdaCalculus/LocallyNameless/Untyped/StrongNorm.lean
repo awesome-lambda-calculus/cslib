@@ -10,6 +10,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.MultiApp
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LcAt
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Takahashi
 public import Cslib.Foundations.Relation.Confluence
 
 /-! Strong normalization (termination) for full beta-reduction of untyped lambda calculus. -/
@@ -206,41 +207,18 @@ lemma baz [DecidableEq Var] [HasFresh Var] (s : Term Var) (s_lc : s.LC)
   | abs xs ih => sorry
 
 lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
-  (t_st_t' : t ⭢ηᶠ t') (sn_t : SN FullBeta t) : SN FullBeta t' := by
-  induction t_st_t' with
-  | base h => cases h
-              have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-              have g := sn_abs_rev _ x (by grind) sn_t
-              unfold open' at g
-              unfold openRec at g
-              apply sn_app_left at g
-              · rw [open_lc] at g <;> assumption
-              · apply LC.fvar
-  | appL _ _ ih =>  rename_i Z M N _ _
-                    apply sn_app
-                    · apply sn_app_left
-                      pick_goal 2
-                      · exact sn_t
-                      apply FullEta.step_lc_l
-                      assumption
-                    · apply ih
-                      apply sn_app_right <;> assumption
-                    · clear ih
-                      sorry
-  | appR _ _ ih =>  apply sn_app
-                    · apply ih
-                      · apply sn_app_left
-                        pick_goal 2
-                        · exact sn_t
-                        assumption
-                    · apply sn_app_right
-                      pick_goal 2
-                      · exact sn_t
-                      apply FullEta.step_lc_l
-                      assumption
-                    · sorry
-  | abs xs _ ih =>  have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-                    exact sn_abs (ih x (by grind) (sn_abs_rev _ x (by grind) sn_t)) (LC.fvar x)
+  (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
+  induction sn_t generalizing t' with
+  | intro t h ih => constructor
+                    intros t'' ht''
+                    have g := @eta_postponement _ _ _ t t'' ?_
+                    · obtain ⟨_, g, _⟩ := g
+                      cases g with
+                      | refl => all_goals sorry
+                      | tail _ _ => apply ih
+                                    all_goals sorry
+                    · apply @Relation.ReflTransGen.trans _ _ _ t' <;> grind
+
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
