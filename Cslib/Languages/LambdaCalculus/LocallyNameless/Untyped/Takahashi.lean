@@ -186,12 +186,38 @@ public theorem localPostpone_parBeta_fullEta :
 there is an intermediate term `L` with `M ⟶β* L` and `L ⟶η* N`: every η-step can
 be postponed past the β-steps.
 -/
-theorem eta_postponement {M N : Term Var} (h : Relation.ReflTransGen FullBetaEta M N) :
+theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
     ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
   obtain ⟨L, hL₁, hL₂⟩ := postpone localPostpone_parBeta_fullEta (Relation.ReflTransGen.mono (fun a b hab => by
     cases hab <;> [exact Or.inl (step_to_para ‹_›); exact Or.inr ‹_›]) h)
   rw [parachain_iff_redex] at hL₁
   exact ⟨ L, hL₁, hL₂ ⟩
+
+theorem cuneiform {M N O : Term Var} (h : M ⭢ηᶠ N) (hno : N ⭢βᶠ O) :
+    ∃ L, (Relation.TransGen FullBeta M L) ∧ L ↠ηᶠ O := by
+  induction h with
+  | base h => cases h with | eta h => exists (O.app (bvar 0)).abs
+                                      constructor
+                                      · constructor
+                                        apply Xi.abs ∅
+                                        sorry
+                                      · apply Relation.ReflTransGen.single
+                                        apply Xi.base
+                                        constructor
+                                        sorry
+  | appR _ _ _ => sorry
+  | appL _ _ _ => cases hno with
+    | appL _ _ => sorry
+    | appR _ _ => sorry
+    | base hno => cases hno with | beta _ _ => sorry
+  | abs xs _ ih => cases hno with
+    | base hno => cases hno
+    | abs xs1 hno => sorry
+
+
+theorem eta_beta_commutation {M N O : Term Var} (h : M ↠ηᶠ N) (hno : FullBeta N O) :
+    ∃ L, (Relation.TransGen FullBeta M L) ∧ L ↠ηᶠ O := by
+  sorry
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
