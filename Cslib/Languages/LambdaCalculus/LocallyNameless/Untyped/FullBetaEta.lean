@@ -55,6 +55,8 @@ theorem redex_app_r_cong (redex : M ↠βηᶠ M') (lc_N : LC N) : app N M ↠β
     · exact join_inl (h.appL lc_N)
     · exact join_inr (h.appL lc_N)
 
+theorem from_beta (h : M ↠βᶠ M') : M ↠βηᶠ M' := by grind
+
 end FullBetaEta
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
