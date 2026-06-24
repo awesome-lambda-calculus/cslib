@@ -157,6 +157,7 @@ lemma sn_abs_app_multiApp [DecidableEq Var] [HasFresh Var] {Ps} {M N : Term Var}
               refine Relation.TransGen.single (Xi.base (Beta.beta ?_ ?_))
               all_goals grind only [→ step_lc_r]
 
+/-
 lemma sn_abs_rev [DecidableEq Var] [HasFresh Var] (M : Term Var) (x : Var)
   (hx : x ∉ M.fv) (sn_M_abs : SN FullBeta M.abs) :
   SN FullBeta (M ^ (fvar x)) := by
@@ -167,7 +168,7 @@ lemma sn_abs_rev [DecidableEq Var] [HasFresh Var] (M : Term Var) (x : Var)
       intro z h_step
       subst MM
       have z_lc : LC z := step_lc_r h_step
-      rw [<- close_open x z 0 z_lc] at h_step
+      rw [<- close_open x z z_lc] at h_step
       have g := @step_abs_close _ _ _ _ _ x h_step
       rw [close_openRec_to_subst _ _ _ _ z_lc (LC.fvar _), subst_refl] at g
       unfold open' at g
@@ -176,6 +177,7 @@ lemma sn_abs_rev [DecidableEq Var] [HasFresh Var] (M : Term Var) (x : Var)
       unfold open' at ih
       rw [close_openRec_to_subst _ _ _ _ z_lc (LC.fvar _), subst_refl] at ih
       assumption
+-/
 
 
 -- trival
@@ -211,13 +213,9 @@ lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   induction sn_t generalizing t' with
   | intro t h ih => constructor
                     intros t'' ht''
-                    have g := @eta_postponement _ _ _ t t'' ?_
+                    have g := eta_beta_postpone t_st_t' ht''
                     · obtain ⟨_, g, _⟩ := g
-                      cases g with
-                      | refl => all_goals sorry
-                      | tail _ _ => apply ih
-                                    all_goals sorry
-                    · apply @Relation.ReflTransGen.trans _ _ _ t' <;> grind
+                      sorry
 
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
