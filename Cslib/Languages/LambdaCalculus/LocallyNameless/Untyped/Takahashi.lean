@@ -7,6 +7,7 @@ Authors: Yijun Leng
 
 module
 
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.TakahashiSupport
@@ -447,10 +448,23 @@ theorem takaP_abs {M0 N0 P : Term Var} (xs : Finset Var)
     ∃ Q, Relation.TransGen FullBeta (abs M0) Q ∧ Q ↠ηᶠ P := by
   cases hbeta with
   | base _ => cases ‹Beta N0.abs P›
-  | abs xs _ =>
+  | abs ys hbeta =>
     have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
     specialize ih (M0 ^ fvar z) (by simp +decide [Term.size]) (N0 ^ fvar z) (‹_› ^ fvar z) (hbody z (by grind)) (by grind)
-    exact exists_Q_abs_plus z ( by aesop ) ( by aesop ) ih.choose_spec.1 ih.choose_spec.2;
+    obtain ⟨Q, hqbeta, hqeta⟩ := ih
+    have qlc : Q.LC := by refine Xi.steps_lc_r ?_  hqbeta
+                          intros _ _ _
+                          apply FullBeta.step_lc_r
+                          assumption
+    exists (Q.close z).abs
+    rw [<- close_open z Q 0 qlc] at hqbeta hqeta
+    constructor
+    · sorry
+    · apply FullEta.redex_abs_cong
+      · sorry
+      · sorry
+      · sorry
+    -- exact exists_Q_abs_plus z ( by aesop ) ( by aesop ) ih.choose_spec.1 ih.choose_spec.2
 
 /-- **Strong local commutation.** A single η-step followed by a single β-step
 reorganizes into a non-empty β-sequence followed by η-steps. -/
