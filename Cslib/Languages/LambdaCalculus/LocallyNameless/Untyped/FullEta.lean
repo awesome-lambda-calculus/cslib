@@ -111,6 +111,7 @@ lemma steps_abs_close {x} (steps : M ↠ηᶠ M') (lc_M : LC M) : (M ^* x).abs �
   case refl => exact .refl
   case head b c st_bc _ ih => exact .head (step_abs_close st_bc lc_M) (ih (step_lc_r st_bc))
 
+
 /-- Multiple reduction of opening implies multiple reduction of abstraction. -/
 theorem redex_abs_cong {M M' : Term Var} (xs : Finset Var)
     (cofin : ∀ x ∉ xs, (M ^ fvar x) ↠ηᶠ M' ^ fvar x) (lc_M : LC M.abs) :
