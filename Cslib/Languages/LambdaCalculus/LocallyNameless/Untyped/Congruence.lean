@@ -49,7 +49,7 @@ lemma step_lc_r (hR : ∀ {M' N'}, R M' N' → LC N') (step : Xi R M N) : LC N :
 
 @[scoped grind →]
 lemma steps_lc_r (hR : ∀ {M' N'}, R M' N' → LC N') (steps : Relation.TransGen R M N)
-  : LC N := by induction steps with grind
+ : LC N := by induction steps with grind
 
 end Xi
 
