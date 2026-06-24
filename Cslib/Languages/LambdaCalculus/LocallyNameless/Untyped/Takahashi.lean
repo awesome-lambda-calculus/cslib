@@ -7,6 +7,7 @@ Authors: Yijun Leng
 
 module
 
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.TakahashiSupport
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
@@ -31,15 +32,13 @@ universe u
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
-variable {Var : Type u}
+variable {Var : Type u} [Infinite Var] [DecidableEq Var] [HasFresh Var]
 
 /-- The statement proved by induction: η postpones over a single parallel β-step
 out of `M`. -/
 public def TakaProp (M : Term Var) : Prop :=
   ∀ N P : Term Var, FullEta M N → Parallel N P → ∃ Q, Parallel M Q ∧ Q ↠ηᶠ P
 
-
-variable [Infinite Var] [DecidableEq Var]
 
 /-
 Base case: the η-redex is at the top.
@@ -193,14 +192,16 @@ theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
   rw [parachain_iff_redex] at hL₁
   exact ⟨ L, hL₁, hL₂ ⟩
 
+variable {α : Type*}
+
 /-- Weak commutation: a `B`-star followed by an `A`-star can be reorganized into
 an `A`-star followed by a `B`-star. -/
-def WeakCommute {α} (A B : α → α → Prop) : Prop :=
+def WeakCommute (A B : α → α → Prop) : Prop :=
   ∀ ⦃p q r⦄, Relation.ReflTransGen B p q → Relation.ReflTransGen A q r → ∃ s, Relation.ReflTransGen A p s ∧ Relation.ReflTransGen B s r
 
 /-- Strong local postponement: a single `B`-step followed by a single `A`-step
 reorganizes into a *non-empty* sequence of `A`-steps followed by a `B`-star. -/
-def StrongLocal {α} (A B : α → α → Prop) : Prop :=
+def StrongLocal (A B : α → α → Prop) : Prop :=
   ∀ ⦃x y z⦄, B x y → A y z → ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
 
 /-
@@ -211,10 +212,10 @@ theorem single_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
     {x y z : α} (hxy : B x y) (hyz : Relation.TransGen A y z) :
     ∃ (w : α), Relation.TransGen A x w ∧ Relation.ReflTransGen B w z := by
   induction hyz with
-  · exact hL hxy z;
-  · rename_i h₁ h₂ h₃;
+  | single hyz => exact hL hxy hyz
+  | tail h₁ h₂ h₃ =>
     obtain ⟨ w, hw₁, hw₂ ⟩ := h₃;
-    exact Exists.elim ( hW hw₂ ( Relation.ReflTransGen.single h₂ ) ) fun s hs => ⟨ s, hw₁.trans_left hs.1, hs.2 ⟩
+    exact Exists.elim (hW hw₂ (Relation.ReflTransGen.single h₂)) fun s hs => ⟨s, hw₁.trans_left hs.1, hs.2⟩
 
 /-
 A `B`-star followed by a non-empty `A`-sequence reorganizes into a non-empty
@@ -223,18 +224,11 @@ A `B`-star followed by a non-empty `A`-sequence reorganizes into a non-empty
 theorem star_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
     {a b c : α} (hab : Relation.ReflTransGen B a b) (hbc : Relation.TransGen A b c) :
     ∃ w, Relation.TransGen A a w ∧ Relation.ReflTransGen B w c := by
-  induction' hab with d hd ih generalizing c;
-  · exact ⟨ c, hbc, by rfl ⟩;
-  · rename_i hB hA;
+  induction hab generalizing c with
+  | refl => exact ⟨ c, hbc, by rfl ⟩
+  | tail _ hB hA =>
     exact single_over_plus hW hL hB hbc |> fun ⟨ w, hw₁, hw₂ ⟩ => hA hw₁ |> fun ⟨ x, hx₁, hx₂ ⟩ => ⟨ x, hx₁, hx₂.trans hw₂ ⟩
 
-end AbstractPostpone
-
-namespace LambdaLN
-
-open Term
-
-variable {Var : Type u} [Infinite Var]
 
 /-! ## Congruence lemmas for non-empty β-reduction -/
 
@@ -271,11 +265,9 @@ theorem fullBetaTrans_abs_close (x : Var) {A B : Term Var}
     Relation.TransGen FullBeta (abs (closeRec 0 x A)) (abs (closeRec 0 x B)) := by
   revert h;
   intro h
-  induction' h with B hB h ih;
-  · exact .single ( Xi.abs_close ( fun _ _ => Beta.regular ) ( fun _ _ hab y w hw => Beta.subst hab y hw ) x hB );
-  · rename_i h₁ h₂ h₃;
-    refine' h₃.tail _;
-    apply Xi.abs_close (fun _ _ => Beta.regular) (fun _ _ hab y w hw => Beta.subst hab y hw) x h₂
+  induction h with
+  | single h => exact .single (FullBeta.step_abs_close h);
+  | tail h₁ h₂ h₃ => apply h₃.tail (FullBeta.step_abs_close h₂)
 
 /-! ## The strong local commutation property -/
 
@@ -283,20 +275,22 @@ theorem fullBetaTrans_abs_close (x : Var) {A B : Term Var}
 β-step out of `M` reorganizes into a non-empty β-sequence followed by η-steps. -/
 def TakaPlusProp (M : Term Var) : Prop :=
   ∀ N P : Term Var, FullEta M N → FullBeta N P →
-    ∃ Q, Relation.TransGen FullBeta M Q ∧ FullEtaStar Q P
+    ∃ Q, Relation.TransGen FullBeta M Q ∧ Q ↠ηᶠ P
+
 
 /-
 Base case: the η-redex is at the top.
 -/
 theorem takaP_base {M0 P : Term Var} (hM0 : LC M0) (hbeta : FullBeta M0 P) :
-    ∃ Q, Relation.TransGen FullBeta (abs (app M0 (bvar 0))) Q ∧ FullEtaStar Q P := by
-  refine' ⟨ _, _, _ ⟩;
-  exact abs ( app P ( bvar 0 ) );
-  · refine' Relation.TransGen.single _;
-    apply Xi.abs ∅;
-    simp +decide [ Term.openRec, Term.openRec_lc hM0, Term.openRec_lc ( FullBeta.lc_right hbeta ) ];
-    exact fun x => Xi.appR ( LC.fvar x ) hbeta;
-  · exact .single ( Xi.base ( Eta.eta ( FullBeta.lc_right hbeta ) ) )
+    ∃ Q, Relation.TransGen FullBeta (abs (app M0 (bvar 0))) Q ∧ Q ↠ηᶠ P := by
+  refine' ⟨ _, _, _ ⟩
+  exact abs ( app P ( bvar 0 ) )
+  · refine' Relation.TransGen.single _
+    apply Xi.abs ∅
+    intros x hx
+    unfold open' openRec
+    rw [open_lc _ _ M0 hM0, open_lc _ _ P] <;> grind [FullBeta.step_lc_r]
+  · exact .single ( Xi.base ( Eta.eta (FullBeta.step_lc_r hbeta) ) )
 
 /-
 η-step in the argument of an application.
@@ -304,21 +298,18 @@ theorem takaP_base {M0 P : Term Var} (hM0 : LC M0) (hbeta : FullBeta M0 P) :
 theorem takaP_appL {Z M0 N0 P : Term Var}
     (ih : ∀ (M' : Term Var), size M' < size (app Z M0) → TakaPlusProp M')
     (hZ : LC Z) (he : FullEta M0 N0) (hbeta : FullBeta (app Z N0) P) :
-    ∃ Q, Relation.TransGen FullBeta (app Z M0) Q ∧ FullEtaStar Q P := by
+    ∃ Q, Relation.TransGen FullBeta (app Z M0) Q ∧ Q ↠ηᶠ P := by
   rcases hbeta with ( _ | _ | _ | _ );
   · rcases ‹_› with ( _ | _ | _ | _ );
     rcases ‹Beta _ _› with ( _ | _ | _ | _ );
     rename_i k hk₁ hk₂ hk₃ hk₄ hk₅ hk₆;
-    refine' ⟨ _, Relation.TransGen.single ( Xi.base ( Beta.beta hZ ( FullEta.lc_left he ) ) ), _ ⟩;
-    apply_rules [ FullEtaStar.open_arg ];
-    exact .single he;
+    refine ⟨ _, Relation.TransGen.single (Xi.base (Beta.beta hZ (FullEta.step_lc_l he) ) ), ?_ ⟩
+    apply FullEta.step_open_cong_r hZ (FullEta.step_lc_l he) he
   · obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 ( by
       exact Nat.lt_succ_of_le ( Nat.le_add_left _ _ ) ) N0 _ he ‹_›;
-    exact ⟨ _, fullBetaTrans_appL hZ hQ₁, FullEtaStar.appL hZ hQ₂ ⟩;
+    exact ⟨ _, fullBetaTrans_appL hZ hQ₁, (FullEta.redex_app_r_cong hQ₂ (by assumption))⟩;
   · rename_i N hN hN';
-    refine' ⟨ _, fullBetaTrans_appR ( FullEta.lc_left he ) _, FullEtaStar.appL ( FullBeta.lc_right hN ) _ ⟩;
-    · exact .single hN;
-    · exact .single he
+    exact ⟨ _, fullBetaTrans_appR (FullEta.step_lc_l he) (.single hN), FullEta.redex_app_r_cong (.single he) (FullBeta.step_lc_r hN)⟩;
 
 /-
 The β-redex-creation subcase where the operator η-reduces (by a top η-redex)
@@ -326,25 +317,25 @@ to an abstraction.
 -/
 theorem takaP_appR_redex {W Z : Term Var} (hZ : LC Z) (hW : LC (abs W)) :
     ∃ Q, Relation.TransGen FullBeta
-        (app (abs (app (abs W) (bvar 0))) Z) Q ∧ FullEtaStar Q (W ^ Z) := by
+        (app (abs (app (abs W) (bvar 0))) Z) Q ∧ Q ↠ηᶠ (W ^ Z) := by
   -- Prove that `LC (abs (app (abs W) (bvar 0)))` by showing it is locally closed.
   have hLC : LC (Term.abs (Term.app (Term.abs W) (Term.bvar 0))) := by
-    apply Term.LC.abs;
-    intro x hx;
-    convert Term.LC.app ?_ ( Term.LC.fvar x ) using 1;
-    convert hW using 1;
-    convert Term.openRec_lc hW 0 ( fvar x ) using 1;
-    exact ∅
-  exact (by
-  refine' ⟨ W ^ Z, _, _ ⟩;
-  · refine' .head _ ( .single _ );
-    exact Xi.base ( Beta.beta hLC hZ );
-    -- By definition of `openRec`, we have `openRec 0 Z (abs W) = abs W`.
-    have h_openRec : openRec 0 Z (abs W) = abs W := by
-      grind +suggestions;
-    convert Xi.base ( Beta.beta hW hZ ) using 1;
-    exact congr_arg₂ _ h_openRec rfl;
-  · exact .refl)
+    apply Term.LC.abs ∅
+    grind
+  exists W ^ Z
+  constructor
+  · apply Relation.TransGen.tail
+    · apply Relation.TransGen.single
+      apply Xi.base
+      constructor <;> grind
+    · apply Xi.base
+      unfold open'
+      conv =>
+        left
+        unfold openRec
+      rw [open_lc _ _ W.abs hW]
+      constructor <;> grind
+  · grind
 
 /-
 The β-redex-creation subcase where the operator is an abstraction whose body
@@ -353,11 +344,11 @@ The β-redex-creation subcase where the operator is an abstraction whose body
 theorem takaP_appR_create {M0b W Z : Term Var} (xs : Finset Var) (hZ : LC Z)
     (hM0 : LC (abs M0b))
     (hbody : ∀ x ∉ xs, FullEta (M0b ^ fvar x) (W ^ fvar x)) :
-    ∃ Q, Relation.TransGen FullBeta (app (abs M0b) Z) Q ∧ FullEtaStar Q (W ^ Z) := by
+    ∃ Q, Relation.TransGen FullBeta (app (abs M0b) Z) Q ∧ Q ↠ηᶠ (W ^ Z) := by
   use M0b ^ Z;
   constructor;
   · exact .single ( Xi.base ( Beta.beta hM0 hZ ) );
-  · convert FullEtaStar.open_body xs ( fun x hx => Relation.ReflTransGen.single ( hbody x hx ) ) hZ using 1
+  · convert open_body xs ( fun x hx => Relation.ReflTransGen.single ( hbody x hx ) ) hZ using 1
 
 /-
 η-step in the operator of an application (includes β-redex creation).
@@ -365,23 +356,60 @@ theorem takaP_appR_create {M0b W Z : Term Var} (xs : Finset Var) (hZ : LC Z)
 theorem takaP_appR {M0 Z N0 P : Term Var}
     (ih : ∀ (M' : Term Var), size M' < size (app M0 Z) → TakaPlusProp M')
     (hZ : LC Z) (he : FullEta M0 N0) (hbeta : FullBeta (app N0 Z) P) :
-    ∃ Q, Relation.TransGen FullBeta (app M0 Z) Q ∧ FullEtaStar Q P := by
-  by_contra h_contra;
-  cases' hbeta with hbeta hbeta;
-  · cases' ‹Beta _ _› with hW hZ' hP;
-    cases' he with he he;
-    · cases ‹Eta M0 hW.abs›;
-      exact h_contra <| takaP_appR_redex hZ hP;
-    · rename_i k hk;
-      exact h_contra <| by have := takaP_appR_create ‹_› hZ ( FullEta.lc_left <| show FullEta ( k.abs ) ( hW.abs ) from Xi.abs _ hk ) hk; tauto;
-  · rename_i N hN hN';
-    refine' h_contra ⟨ _, fullBetaTrans_appL _ ( Relation.TransGen.single hN' ), _ ⟩;
-    · have := FullEta.lc_left he; aesop;
+    ∃ Q, Relation.TransGen FullBeta (app M0 Z) Q ∧ Q ↠ηᶠ P := by
+  cases hbeta with
+  | appL _ _ =>
+    rename_i N hN hN';
+    refine ⟨ _, fullBetaTrans_appL ?_ ( Relation.TransGen.single hN' ), ?_ ⟩;
+    · apply FullEta.step_lc_l
+      assumption
     · grind +suggestions;
-  · rename_i N hN hZ';
-    obtain ⟨w, hw1, hw2⟩ : ∃ w, Relation.TransGen FullBeta M0 w ∧ FullEtaStar w N := by
+  | appR _ _ =>
+    rename_i N hN hZ';
+    obtain ⟨w, hw1, hw2⟩ : ∃ w, Relation.TransGen FullBeta M0 w ∧ w ↠ηᶠ N := by
       exact ih M0 ( by simp +decide [ Term.size ] ) N0 N he ( by tauto );
-    refine' h_contra ⟨ _, fullBetaTrans_appR hZ' hw1, FullEtaStar.appR hZ' hw2 ⟩
+    refine ⟨ _, fullBetaTrans_appR hZ' hw1, FullEta.redex_app_l_cong hw2 hZ'⟩
+  | base hbeta => cases hbeta with | beta _ _ => cases he with
+    | base he => cases he with | eta he =>
+      rename_i M _ _
+      exists M ^ Z
+      constructor
+      · apply Relation.TransGen.tail
+        · apply Relation.TransGen.single
+          apply Xi.base
+          constructor
+          · apply LC.abs ∅
+            intros x hx
+            constructor
+            rw [open_lc] <;> grind
+            grind
+          · assumption
+        · apply Xi.base
+          unfold open'
+          conv =>
+            left
+            unfold openRec
+          rw [open_lc]
+          · constructor <;> grind
+          · assumption
+      · grind
+    | abs xs hL =>
+      rename_i L
+      exists L ^ Z
+      constructor
+      · apply Relation.TransGen.single
+        apply Xi.base
+        constructor
+        · have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+          specialize hL x (by grind)
+          apply FullEta.step_lc_l at hL
+          apply open_abs_lc hL
+        · assumption
+      · apply open_body
+        intros x hx
+        · specialize hL x hx
+          grind
+        · grind
 
 /-
 Witness packaging for the abstraction case (β side via closing).
@@ -389,8 +417,8 @@ Witness packaging for the abstraction case (β side via closing).
 theorem exists_Q_abs_plus {M0 P0 W : Term Var} (z : Var)
     (hz0 : z ∉ fv M0) (hzP : z ∉ fv P0)
     (hbeta : Relation.TransGen FullBeta (M0 ^ fvar z) W)
-    (heta : FullEtaStar W (P0 ^ fvar z)) :
-    ∃ Q, Relation.TransGen FullBeta (Term.abs M0) Q ∧ FullEtaStar Q (Term.abs P0) := by
+    (heta : W ↠ηᶠ (P0 ^ fvar z)) :
+    ∃ Q, Relation.TransGen FullBeta (Term.abs M0) Q ∧ Q ↠ηᶠ (Term.abs P0) := by
   -- By `fullBetaTrans_abs_close z hbeta`, we get `Relation.TransGen FullBeta (abs (closeRec 0 z (M0 ^ fvar z))) (abs (closeRec 0 z W))`.
   have h_trans : Relation.TransGen FullBeta (abs (closeRec 0 z (M0 ^ fvar z))) (abs (closeRec 0 z W)) := by
     convert fullBetaTrans_abs_close z hbeta using 1;
@@ -398,9 +426,16 @@ theorem exists_Q_abs_plus {M0 P0 W : Term Var} (z : Var)
   exact ( closeRec 0 z W ).abs;
   · convert h_trans using 1;
     rw [ show closeRec 0 z ( M0 ^ fvar z ) = M0 from ?_ ];
-    convert Term.close_open hz0 0 using 1;
-  · convert XiStar.abs_close ( fun _ _ => Eta.regular ) ( fun _ _ hab y w hw => Eta.subst hab y hw ) z heta using 1;
-    exact congr_arg _ ( by exact Eq.symm ( Term.close_open hzP 0 ) )
+    symm
+    apply Term.open_close _ _ _ hz0
+  · rw [<- close_open z W 0] at heta
+    apply FullEta.redex_abs_cong
+    · sorry
+    · sorry
+    · sorry
+    · sorry
+    -- convert XiStar.abs_close ( fun _ _ => Eta.regular ) ( fun _ _ hab y w hw => Eta.subst hab y hw ) z heta using 1;
+    -- exact congr_arg _ ( by exact Eq.symm ( Term.close_open hzP 0 ) )
 
 /-
 η-step under a binder.
@@ -409,17 +444,13 @@ theorem takaP_abs {M0 N0 P : Term Var} (xs : Finset Var)
     (ih : ∀ (M' : Term Var), size M' < size (abs M0) → TakaPlusProp M')
     (hbody : ∀ x ∉ xs, FullEta (M0 ^ fvar x) (N0 ^ fvar x))
     (hbeta : FullBeta (abs N0) P) :
-    ∃ Q, Relation.TransGen FullBeta (abs M0) Q ∧ FullEtaStar Q P := by
-  cases' hbeta with N0' hN0';
-  · cases' ‹Beta N0.abs P› with N0' hN0';
-  · obtain ⟨z, hz⟩ : ∃ z : Var, z ∉ xs ∪ ‹Finset Var› ∪ fv M0 ∪ fv ‹_› := by
-      exact Finset.exists_notMem _;
-    have := ih ( M0 ^ fvar z ) ?_ ( N0 ^ fvar z ) ( ‹_› ^ fvar z ) ( hbody z ?_ ) ( ‹∀ x ∉ _, Xi Beta ( N0 ^ fvar x ) ( _ ^ fvar x ) › z ?_ );
-    · exact exists_Q_abs_plus z ( by aesop ) ( by aesop ) this.choose_spec.1 this.choose_spec.2;
-    · simp +decide [ Term.size ];
-      convert Term.size_openRec_fvar 0 z M0 |> le_of_eq;
-    · grind;
-    · grind
+    ∃ Q, Relation.TransGen FullBeta (abs M0) Q ∧ Q ↠ηᶠ P := by
+  cases hbeta with
+  | base _ => cases ‹Beta N0.abs P›
+  | abs xs _ =>
+    have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
+    specialize ih (M0 ^ fvar z) (by simp +decide [Term.size]) (N0 ^ fvar z) (‹_› ^ fvar z) (hbody z (by grind)) (by grind)
+    exact exists_Q_abs_plus z ( by aesop ) ( by aesop ) ih.choose_spec.1 ih.choose_spec.2;
 
 /-- **Strong local commutation.** A single η-step followed by a single β-step
 reorganizes into a non-empty β-sequence followed by η-steps. -/
@@ -444,7 +475,7 @@ theorem eta_beta_local (M : Term Var) : TakaPlusProp M := by
 
 /-- The strong local postponement hypothesis instantiated for full β and η. -/
 theorem strongLocal_fullBeta_fullEta :
-    AbstractPostpone.StrongLocal (FullBeta (Var := Var)) (FullEta (Var := Var)) :=
+    StrongLocal (FullBeta (Var := Var)) (FullEta (Var := Var)) :=
   fun _ _ _ he hbeta => eta_beta_local _ _ _ he hbeta
 
 /-
@@ -452,12 +483,12 @@ Weak commutation of full β and full η (derived from η-postponement via the
 parallel-β local lemma).
 -/
 theorem weakCommute_fullBeta_fullEta :
-    AbstractPostpone.WeakCommute (FullBeta (Var := Var)) (FullEta (Var := Var)) := by
+    WeakCommute (FullBeta (Var := Var)) (FullEta (Var := Var)) := by
   intro p q r hpq hqr;
-  obtain ⟨ s, hs ⟩ := AbstractPostpone.postpone ( localPostpone_parBeta_fullEta ) ( by
+  obtain ⟨ s, hs ⟩ := postpone ( localPostpone_parBeta_fullEta ) ( by
     convert hpq.mono _ |> Relation.ReflTransGen.trans <| hqr.mono _ using 1;
     · exact fun a b hab => Or.inr hab;
-    · exact fun a b hab => Or.inl <| ParBeta.of_FullBeta hab : Relation.ReflTransGen ( fun a b => ParBeta a b ∨ FullEta a b ) p r );
+    · exact fun a b hab => Or.inl <| Parallel.of_FullBeta hab : Relation.ReflTransGen ( fun a b => Parallel a b ∨ FullEta a b ) p r );
   exact ⟨ s, parBetaStar_toFullBetaStar hs.1, hs.2 ⟩
 
 /-! ## Main theorem -/
@@ -465,9 +496,9 @@ theorem weakCommute_fullBeta_fullEta :
 /-- **Strong η-postponement (single β-step).**  If `t ⟶η* t'` and `t' ⟶β t''`,
 then there is `y` with a non-empty β-reduction `t ⟶β⁺ y` and `y ⟶η* t''`. -/
 theorem eta_beta_postpone {t t' t'' : Term Var}
-    (htt' : FullEtaStar t t') (ht'' : FullBeta t' t'') :
-    ∃ y, Relation.TransGen FullBeta t y ∧ FullEtaStar y t'' := by
-  exact AbstractPostpone.star_over_plus weakCommute_fullBeta_fullEta
+    (htt' : t ↠ηᶠ t') (ht'' : FullBeta t' t'') :
+    ∃ y, Relation.TransGen FullBeta t y ∧ y ↠ηᶠ t'' := by
+  exact star_over_plus weakCommute_fullBeta_fullEta
     strongLocal_fullBeta_fullEta htt' (Relation.TransGen.single ht'')
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
