@@ -413,6 +413,7 @@ theorem takaP_appR {M0 Z N0 P : Term Var}
         · grind
 
 /-
+/-
 Witness packaging for the abstraction case (β side via closing).
 -/
 theorem exists_Q_abs_plus {M0 P0 W : Term Var} (z : Var)
@@ -429,7 +430,7 @@ theorem exists_Q_abs_plus {M0 P0 W : Term Var} (z : Var)
     rw [ show closeRec 0 z ( M0 ^ fvar z ) = M0 from ?_ ];
     symm
     apply Term.open_close _ _ _ hz0
-  · rw [<- close_open z W 0] at heta
+  · rw [<- close_open z W] at heta
     apply FullEta.redex_abs_cong
     · sorry
     · sorry
@@ -437,6 +438,7 @@ theorem exists_Q_abs_plus {M0 P0 W : Term Var} (z : Var)
     · sorry
     -- convert XiStar.abs_close ( fun _ _ => Eta.regular ) ( fun _ _ hab y w hw => Eta.subst hab y hw ) z heta using 1;
     -- exact congr_arg _ ( by exact Eq.symm ( Term.close_open hzP 0 ) )
+-/
 
 /-
 η-step under a binder.
@@ -457,14 +459,24 @@ theorem takaP_abs {M0 N0 P : Term Var} (xs : Finset Var)
                           apply FullBeta.step_lc_r
                           assumption
     exists (Q.close z).abs
-    rw [<- close_open z Q 0 qlc] at hqbeta hqeta
+    rw [<- close_open z Q qlc] at hqbeta hqeta
+    rename_i N
     constructor
     · sorry
-    · apply FullEta.redex_abs_cong
-      · sorry
-      · sorry
-      · sorry
-    -- exact exists_Q_abs_plus z ( by aesop ) ( by aesop ) ih.choose_spec.1 ih.choose_spec.2
+    · apply FullEta.redex_abs_cong (∅ ∪ M0.fv ∪ N0.fv ∪ xs ∪ N.fv ∪ ys ∪ {z})
+      · intros x hx
+        have h := @FullEta.steps_subst_cong_l _ _ _ z _ _ (fvar x) hqeta (by grind)
+        rw [subst_open _ _ _ _ (by grind)] at h
+        rw [subst_open _ _ _ _ (by grind)] at h
+        rw [subst_fresh _ _ _ (by grind)] at h
+        rw [subst_fresh _ N _ (by grind)] at h
+        rw [subst_fvar] at h
+        split at h <;> grind
+      · apply LC.abs ∅
+        intros x hx
+        rw [close_open_to_subst]
+        apply subst_lc <;> grind
+        all_goals grind
 
 /-- **Strong local commutation.** A single η-step followed by a single β-step
 reorganizes into a non-empty β-sequence followed by η-steps. -/
