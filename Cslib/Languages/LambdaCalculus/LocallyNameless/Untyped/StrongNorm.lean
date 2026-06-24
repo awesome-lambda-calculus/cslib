@@ -178,7 +178,6 @@ lemma sn_abs_rev [DecidableEq Var] [HasFresh Var] (M : Term Var) (x : Var)
       unfold open' at ih
       rw [close_openRec_to_subst _ _ _ _ z_lc (LC.fvar _), subst_refl] at ih
       assumption
--/
 
 
 -- trival
@@ -208,15 +207,60 @@ lemma baz [DecidableEq Var] [HasFresh Var] (s : Term Var) (s_lc : s.LC)
                                     rw [open_lc _ _ _ t'_lc] at sn_t
                                     exact sn_step (Xi.base (Beta.beta t'_lc s_lc)) sn_t
   | abs xs ih => sorry
+-/
 
-lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
+lemma sn_eta_step_helper [DecidableEq Var] [HasFresh Var]
+  (sn_t : SN (TransGen FullBeta) t) (t_st_t' : t ↠ηᶠ t') : SN (TransGen FullBeta) t' := by
   induction sn_t generalizing t' with
   | intro t h ih => constructor
                     intros t'' ht''
                     have g := eta_beta_postpone t_st_t' ht''
                     · obtain ⟨_, g, _⟩ := g
-                      sorry
+                      apply ih _ g
+                      assumption
+
+
+theorem acc_cong {α : Sort u} {r s : α → α → Prop}
+    (hrel : ∀ a b, r a b ↔ s a b) (x : α) :
+    Acc s x ↔ Acc r x := by
+  constructor
+  · intro h
+    induction h with
+    | intro y hy ih =>
+      apply Acc.intro
+      intro z hrz
+      rw [hrel] at hrz
+      exact ih z hrz
+  · intro h
+    induction h with
+    | intro y hy ih =>
+      apply Acc.intro
+      intro z hsz
+      rw [<- hrel] at hsz
+      exact ih z hsz
+
+lemma hrel : ∀ (a b : Term Var) ,
+  TransGen (fun x y => y ⭢βᶠ x) a b ↔ (fun x y => TransGen FullBeta y x) a b := by
+  intro a b
+  simpa [FullBeta, TransGen.swap] using
+  (transGen_swap (r := FullBeta) (a := a) (b := b))
+
+lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
+  (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
+  unfold SN
+  rw [<- acc_transGen_iff]
+  unfold SN at sn_t
+  rw [<- acc_transGen_iff] at sn_t
+  have g := sn_eta_step_helper ?_ t_st_t'
+  · rw [acc_cong]
+    · exact g
+    · intros a b
+      rw [hrel a b]
+  · unfold SN
+    rw [acc_cong]
+    · exact sn_t
+    · intros a b
+      rw [hrel a b]
 
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
