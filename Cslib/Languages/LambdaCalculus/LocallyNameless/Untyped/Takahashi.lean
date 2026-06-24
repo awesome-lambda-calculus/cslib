@@ -529,13 +529,11 @@ theorem weakCommute_fullBeta_fullEta :
 
 /-! ## Main theorem -/
 
-/-- **Strong η-postponement (single β-step).**  If `t ⟶η* t'` and `t' ⟶β t''`,
-then there is `y` with a non-empty β-reduction `t ⟶β⁺ y` and `y ⟶η* t''`. -/
 theorem eta_beta_postpone {t t' t'' : Term Var}
-    (htt' : t ↠ηᶠ t') (ht'' : FullBeta t' t'') :
+    (htt' : t ↠ηᶠ t') (ht'' : Relation.TransGen FullBeta t' t'') :
     ∃ y, Relation.TransGen FullBeta t y ∧ y ↠ηᶠ t'' :=
   star_over_plus weakCommute_fullBeta_fullEta
-    strongLocal_fullBeta_fullEta htt' (Relation.TransGen.single ht'')
+    strongLocal_fullBeta_fullEta htt' ht''
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
