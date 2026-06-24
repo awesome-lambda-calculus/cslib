@@ -462,7 +462,15 @@ theorem takaP_abs {M0 N0 P : Term Var} (xs : Finset Var)
     rw [<- close_open z Q qlc] at hqbeta hqeta
     rename_i N
     constructor
-    · sorry
+    · apply FullBeta.steps_abs_cong (∅ ∪ M0.fv ∪ N0.fv ∪ xs ∪ N.fv ∪ ys ∪ {z})
+      · intros x hx
+        have h := FullBeta.steps_subst_cong_l _ _  (fvar x) z hqbeta (by grind)
+        rw [subst_open _ _ _ _ (by grind)] at h
+        rw [subst_open _ _ _ _ (by grind)] at h
+        rw [subst_fresh _ _ _ (by grind)] at h
+        rw [subst_fresh _ (Q ^* z) _ (by grind)] at h
+        rw [subst_fvar] at h
+        split at h <;> grind
     · apply FullEta.redex_abs_cong (∅ ∪ M0.fv ∪ N0.fv ∪ xs ∪ N.fv ∪ ys ∪ {z})
       · intros x hx
         have h := @FullEta.steps_subst_cong_l _ _ _ z _ _ (fvar x) hqeta (by grind)
@@ -514,8 +522,10 @@ theorem weakCommute_fullBeta_fullEta :
   obtain ⟨ s, hs ⟩ := postpone ( localPostpone_parBeta_fullEta ) ( by
     convert hpq.mono _ |> Relation.ReflTransGen.trans <| hqr.mono _ using 1;
     · exact fun a b hab => Or.inr hab;
-    · exact fun a b hab => Or.inl <| Parallel.of_FullBeta hab : Relation.ReflTransGen ( fun a b => Parallel a b ∨ FullEta a b ) p r );
-  exact ⟨ s, parBetaStar_toFullBetaStar hs.1, hs.2 ⟩
+    · exact fun a b hab => Or.inl <| step_to_para hab);
+  obtain ⟨hs1, hs2⟩ := hs
+  rw [parachain_iff_redex] at hs1
+  exact ⟨s, hs1, hs2⟩
 
 /-! ## Main theorem -/
 
@@ -523,8 +533,8 @@ theorem weakCommute_fullBeta_fullEta :
 then there is `y` with a non-empty β-reduction `t ⟶β⁺ y` and `y ⟶η* t''`. -/
 theorem eta_beta_postpone {t t' t'' : Term Var}
     (htt' : t ↠ηᶠ t') (ht'' : FullBeta t' t'') :
-    ∃ y, Relation.TransGen FullBeta t y ∧ y ↠ηᶠ t'' := by
-  exact star_over_plus weakCommute_fullBeta_fullEta
+    ∃ y, Relation.TransGen FullBeta t y ∧ y ↠ηᶠ t'' :=
+  star_over_plus weakCommute_fullBeta_fullEta
     strongLocal_fullBeta_fullEta htt' (Relation.TransGen.single ht'')
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
