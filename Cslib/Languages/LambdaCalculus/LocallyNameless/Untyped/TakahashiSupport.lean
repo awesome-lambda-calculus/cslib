@@ -57,8 +57,8 @@ theorem exists_Q_abs {M0 P0 W : Term Var} (z : Var)
   · apply Parallel.abs ({ z } ∪ M0.fv ∪ W.fv)
     intro x hx
     convert para_subst z hpar ( Parallel.fvar x ) <;> grind
-  · have h_subst : ∀ x, x ∉ {z} ∪ W.fv ∪ P0.fv → Term.subst W z (fvar x) ↠ηᶠ Term.subst (P0 ^ fvar z) z (fvar x) := by
-      exact fun x hx => FullEta.steps_subst_cong_l _ _ _ heta (LC.fvar x)
+  · have h_subst : ∀ x ∉ {z} ∪ W.fv ∪ P0.fv, W[z := fvar x] ↠ηᶠ (P0 ^ fvar z) [z := fvar x] :=
+      fun x hx => FullEta.steps_subst_cong_l _ _ _ heta (LC.fvar x)
     apply FullEta.redex_abs_cong
     · intro x hx
       convert h_subst x hx <;> grind

@@ -33,11 +33,11 @@ universe u
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
-variable {Var : Type u}  [DecidableEq Var] [HasFresh Var]
+variable {Var : Type u} [DecidableEq Var] [HasFresh Var]
 
 /-- The statement proved by induction: η postpones over a single parallel β-step
 out of `M`. -/
-public def TakaProp (M : Term Var) : Prop :=
+def TakaProp (M : Term Var) : Prop :=
   ∀ N P : Term Var, FullEta M N → Parallel N P → ∃ Q, Parallel M Q ∧ Q ↠ηᶠ P
 
 
@@ -64,8 +64,7 @@ theorem taka_appL {Z M0 N0 P : Term Var}
     ∃ Q, Parallel (Term.app Z M0) Q ∧ Q ↠ηᶠ P := by
   cases hp with
   | app _ _ =>
-  · obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 ( by
-      exact Nat.lt_succ_of_le ( Nat.le_add_left _ _ ) ) N0 _ he ‹_›
+  · obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 (Nat.lt_succ_of_le ( Nat.le_add_left _ _ ) ) N0 _ he ‹_›
     exact ⟨ _, Parallel.app ‹_› hQ₁, FullEta.redex_app_r_cong (by grind) (by grind) ⟩
   | beta xs hk₁ hk₂ =>
     rename_i N M M'
@@ -84,12 +83,12 @@ The β-redex obtained by η-contracting the operator `abs (app (abs M1) (bvar 0)
 to `abs M1` is reached in a single parallel β-step.
 -/
 omit [DecidableEq Var] in
-theorem parBeta_eta_redex {M1 M1' Z N1' : Term Var} (xs : Finset Var)
+theorem parBeta_eta_redex {M1 M1' Z Z' : Term Var} (xs : Finset Var)
     (hLC : LC (Term.abs M1))
     (hbody : ∀ x ∉ xs, Parallel (M1 ^ fvar x) (M1' ^ fvar x))
-    (hZN1' : Parallel Z N1') :
-    Parallel (Term.app (Term.abs (Term.app (Term.abs M1) (Term.bvar 0))) Z) (M1' ^ N1') := by
-  apply Parallel.beta xs _ hZN1'
+    (hZZ : Parallel Z Z') :
+    Parallel (Term.app (Term.abs (Term.app (Term.abs M1) (Term.bvar 0))) Z) (M1' ^ Z') := by
+  apply Parallel.beta xs _ hZZ
   intro x hx
   apply Parallel.beta xs
   · intro x hx
@@ -110,12 +109,10 @@ theorem taka_appR_create_abs {A M1 M1' Z N1' : Term Var} (ys2 xs : Finset Var)
     (hbody : ∀ x ∉ xs, Parallel (M1 ^ fvar x) (M1' ^ fvar x))
     (hZN1' : Parallel Z N1') :
     ∃ Q, Parallel (Term.app (Term.abs A) Z) Q ∧ Q ↠ηᶠ (M1' ^ N1') := by
-  -- By `Infinite.exists_notMem_finset (ys2 ∪ xs ∪ fv A ∪ fv M1')`, pick a fresh variable `z`.
-  obtain ⟨z, hz⟩ : ∃ z : Var, z ∉ ys2 ∪ xs ∪ (fv A ∪ fv M1') := by
-    exact Finset.exists_notMem _
+  have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
   -- By `TakaProp`, we have `∃ W, ParBeta (A ^ fvar z) W ∧ FullEtaStar W (M1' ^ fvar z)`.
-  obtain ⟨W, hWpar, hWeta⟩ : ∃ W, Parallel (openRec 0 (fvar z) A) W ∧ W ↠ηᶠ (openRec 0 (fvar z) M1') := by
-    exact ih _ (by grind [size_openRec_fvar]) _ _ (hA _ (by grind)) (hbody _ (by grind))
+  obtain ⟨W, hWpar, hWeta⟩ : ∃ W, Parallel (A ^ (fvar z)) W ∧ W ↠ηᶠ (M1' ^ (fvar z)) :=
+    ih _ (by grind [size_openRec_fvar]) _ _ (hA _ (by grind)) (hbody _ (by grind))
   convert exists_Q_app_abs z (by grind) (by grind) hWpar hWeta hZN1'
 
 /-
@@ -128,8 +125,7 @@ theorem taka_appR {Z M0 N0 P : Term Var}
     ∃ Q, Parallel (Term.app M0 Z) Q ∧ Q ↠ηᶠ P := by
   cases hp with
   | app _ _ =>
-    obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 ( by
-      exact Nat.lt_succ_of_le ( Nat.le_add_right _ _ ) ) N0 _ he ‹_›
+    obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 (Nat.lt_succ_of_le ( Nat.le_add_right _ _ ) ) N0 _ he ‹_›
     exact ⟨ _, Parallel.app hQ₁ ‹_›, FullEta.redex_app_l_cong  hQ₂ (by grind)⟩
   | beta xs hM hN => cases he with
     | base hM' =>
@@ -149,11 +145,11 @@ theorem taka_abs {M0 N0 P : Term Var} (xs : Finset Var)
   | abs xs' hbody' =>
   rename_i  M'
   have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
-  have := ih ( M0 ^ fvar z ) ?_ ( N0 ^ fvar z ) ( M' ^ fvar z ) ?_ ?_;
-  · exact exists_Q_abs z (by grind) (by grind) this.choose_spec.1 this.choose_spec.2
+  specialize ih ( M0 ^ fvar z ) ?_ ( N0 ^ fvar z ) ( M' ^ fvar z ) ?_ ?_
   · simp +decide [ Term.size ]
   · aesop
   · aesop
+  · exact exists_Q_abs z (by grind) (by grind) ih.choose_spec.1 ih.choose_spec.2
 
 /-- **Takahashi's lemma.** η postpones over a single parallel β-step. -/
 theorem eta_par_local (M : Term Var) : TakaProp M := by
@@ -176,7 +172,7 @@ theorem eta_par_local (M : Term Var) : TakaProp M := by
   exact key (size M) M rfl N P he hp
 
 /-- The local postponement hypothesis instantiated for parallel β and η. -/
-public theorem localPostpone_parBeta_fullEta :
+theorem localPostpone_parBeta_fullEta :
     LocalPostpone (Parallel (Var := Var)) (FullEta (Var := Var)) :=
   fun _ _ _ he hp => eta_par_local _ _ _ he hp
 
@@ -188,85 +184,13 @@ be postponed past the β-steps.
 -/
 theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
     ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
-  obtain ⟨L, hL₁, hL₂⟩ := postpone localPostpone_parBeta_fullEta (Relation.ReflTransGen.mono (fun a b hab => by
+  obtain ⟨L, hL₁, hL₂⟩ := postpone localPostpone_parBeta_fullEta (.mono (fun a b hab => by
     cases hab <;> [exact Or.inl (step_to_para ‹_›); exact Or.inr ‹_›]) h)
   rw [parachain_iff_redex] at hL₁
   exact ⟨ L, hL₁, hL₂ ⟩
 
-variable {α : Type*}
-
-/-- Weak commutation: a `B`-star followed by an `A`-star can be reorganized into
-an `A`-star followed by a `B`-star. -/
-def WeakCommute (A B : α → α → Prop) : Prop :=
-  ∀ ⦃p q r⦄, Relation.ReflTransGen B p q → Relation.ReflTransGen A q r → ∃ s, Relation.ReflTransGen A p s ∧ Relation.ReflTransGen B s r
-
-/-- Strong local postponement: a single `B`-step followed by a single `A`-step
-reorganizes into a *non-empty* sequence of `A`-steps followed by a `B`-star. -/
-def StrongLocal (A B : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, B x y → A y z → ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
-
-/-
-A single `B`-step followed by a non-empty `A`-sequence reorganizes into a
-non-empty `A`-sequence followed by a `B`-star.
--/
-theorem single_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
-    {x y z : α} (hxy : B x y) (hyz : Relation.TransGen A y z) :
-    ∃ (w : α), Relation.TransGen A x w ∧ Relation.ReflTransGen B w z := by
-  induction hyz with
-  | single hyz => exact hL hxy hyz
-  | tail h₁ h₂ h₃ =>
-    obtain ⟨ w, hw₁, hw₂ ⟩ := h₃;
-    exact Exists.elim (hW hw₂ (Relation.ReflTransGen.single h₂)) fun s hs => ⟨s, hw₁.trans_left hs.1, hs.2⟩
-
-/-
-A `B`-star followed by a non-empty `A`-sequence reorganizes into a non-empty
-`A`-sequence followed by a `B`-star.
--/
-theorem star_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
-    {a b c : α} (hab : Relation.ReflTransGen B a b) (hbc : Relation.TransGen A b c) :
-    ∃ w, Relation.TransGen A a w ∧ Relation.ReflTransGen B w c := by
-  induction hab generalizing c with
-  | refl => exact ⟨ c, hbc, by rfl ⟩
-  | tail _ hB hA =>
-    exact single_over_plus hW hL hB hbc |> fun ⟨ w, hw₁, hw₂ ⟩ => hA hw₁ |> fun ⟨ x, hx₁, hx₂ ⟩ => ⟨ x, hx₁, hx₂.trans hw₂ ⟩
 
 
-/-! ## Congruence lemmas for non-empty β-reduction -/
-
-/-
-Left-application congruence for non-empty full β-reduction.
--/
-theorem fullBetaTrans_appL {Z M N : Term Var} (hZ : LC Z)
-    (h : Relation.TransGen FullBeta M N) :
-    Relation.TransGen FullBeta (app Z M) (app Z N) := by
-  induction h;
-  · exact .single ( Xi.appL hZ ‹_› );
-  · rename_i h₁ h₂ h₃;
-    exact h₃.tail ( Xi.appL hZ h₂ )
-
-/-
-Right-application congruence for non-empty full β-reduction.
--/
-theorem fullBetaTrans_appR {Z M N : Term Var} (hZ : LC Z)
-    (h : Relation.TransGen FullBeta M N) :
-    Relation.TransGen FullBeta (app M Z) (app N Z) := by
-  unfold FullBeta;
-  induction h;
-  · exact .single ( Xi.appR hZ ‹_› );
-  · rename_i h₁ h₂ h₃;
-    exact h₃.tail ( Xi.appR hZ h₂ )
-
-/-
-Abstraction (via closing) congruence for non-empty full β-reduction.
--/
-theorem fullBetaTrans_abs_close (x : Var) {A B : Term Var}
-    (h : Relation.TransGen FullBeta A B) :
-    Relation.TransGen FullBeta (abs (closeRec 0 x A)) (abs (closeRec 0 x B)) := by
-  revert h;
-  intro h
-  induction h with
-  | single h => exact .single (FullBeta.step_abs_close h);
-  | tail h₁ h₂ h₃ => apply h₃.tail (FullBeta.step_abs_close h₂)
 
 /-! ## The strong local commutation property -/
 
@@ -298,56 +222,17 @@ theorem takaP_appL {Z M0 N0 P : Term Var}
     (ih : ∀ (M' : Term Var), size M' < size (app Z M0) → TakaPlusProp M')
     (hZ : LC Z) (he : FullEta M0 N0) (hbeta : FullBeta (app Z N0) P) :
     ∃ Q, Relation.TransGen FullBeta (app Z M0) Q ∧ Q ↠ηᶠ P := by
-  rcases hbeta with ( _ | _ | _ | _ );
-  · rcases ‹_› with ( _ | _ | _ | _ );
-    rcases ‹Beta _ _› with ( _ | _ | _ | _ );
-    rename_i k hk₁ hk₂ hk₃ hk₄ hk₅ hk₆;
+  rcases hbeta with ( _ | _ | _ | _ )
+  · rcases ‹_› with ( _ | _ | _ | _ )
+    rcases ‹Beta _ _› with ( _ | _ | _ | _ )
+    rename_i k hk₁ hk₂ hk₃ hk₄ hk₅ hk₆
     refine ⟨ _, Relation.TransGen.single (Xi.base (Beta.beta hZ (FullEta.step_lc_l he) ) ), ?_ ⟩
     apply FullEta.step_open_cong_r hZ (FullEta.step_lc_l he) he
-  · obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 ( by
-      exact Nat.lt_succ_of_le ( Nat.le_add_left _ _ ) ) N0 _ he ‹_›;
-    exact ⟨ _, fullBetaTrans_appL hZ hQ₁, (FullEta.redex_app_r_cong hQ₂ (by assumption))⟩;
-  · rename_i N hN hN';
-    exact ⟨ _, fullBetaTrans_appR (FullEta.step_lc_l he) (.single hN), FullEta.redex_app_r_cong (.single he) (FullBeta.step_lc_r hN)⟩;
-
-/-
-The β-redex-creation subcase where the operator η-reduces (by a top η-redex)
-to an abstraction.
--/
-theorem takaP_appR_redex {W Z : Term Var} (hZ : LC Z) (hW : LC (abs W)) :
-    ∃ Q, Relation.TransGen FullBeta
-        (app (abs (app (abs W) (bvar 0))) Z) Q ∧ Q ↠ηᶠ (W ^ Z) := by
-  -- Prove that `LC (abs (app (abs W) (bvar 0)))` by showing it is locally closed.
-  have hLC : LC (Term.abs (Term.app (Term.abs W) (Term.bvar 0))) := by
-    apply Term.LC.abs ∅
-    grind
-  exists W ^ Z
-  constructor
-  · apply Relation.TransGen.tail
-    · apply Relation.TransGen.single
-      apply Xi.base
-      constructor <;> grind
-    · apply Xi.base
-      unfold open'
-      conv =>
-        left
-        unfold openRec
-      rw [open_lc _ _ W.abs hW]
-      constructor <;> grind
-  · grind
-
-/-
-The β-redex-creation subcase where the operator is an abstraction whose body
-η-reduces.
--/
-theorem takaP_appR_create {M0b W Z : Term Var} (xs : Finset Var) (hZ : LC Z)
-    (hM0 : LC (abs M0b))
-    (hbody : ∀ x ∉ xs, FullEta (M0b ^ fvar x) (W ^ fvar x)) :
-    ∃ Q, Relation.TransGen FullBeta (app (abs M0b) Z) Q ∧ Q ↠ηᶠ (W ^ Z) := by
-  use M0b ^ Z;
-  constructor;
-  · exact .single ( Xi.base ( Beta.beta hM0 hZ ) );
-  · convert open_body xs ( fun x hx => Relation.ReflTransGen.single ( hbody x hx ) ) hZ using 1
+  · obtain ⟨ Q, hQ₁, hQ₂ ⟩ := ih M0 (Nat.lt_succ_of_le ( Nat.le_add_left _ _ ) ) N0 _ he ‹_›
+    exact ⟨ _, FullBeta.transgen_app_r hZ hQ₁, (FullEta.redex_app_r_cong hQ₂ (by assumption))⟩
+  · rename_i N hN hN'
+    exact ⟨ _, FullBeta.transgen_app_l (FullEta.step_lc_l he) (.single hN),
+               FullEta.redex_app_r_cong (.single he) (FullBeta.step_lc_r hN)⟩
 
 /-
 η-step in the operator of an application (includes β-redex creation).
@@ -357,17 +242,17 @@ theorem takaP_appR {M0 Z N0 P : Term Var}
     (hZ : LC Z) (he : FullEta M0 N0) (hbeta : FullBeta (app N0 Z) P) :
     ∃ Q, Relation.TransGen FullBeta (app M0 Z) Q ∧ Q ↠ηᶠ P := by
   cases hbeta with
-  | appL _ _ =>
-    rename_i N hN hN';
-    refine ⟨ _, fullBetaTrans_appL ?_ ( Relation.TransGen.single hN' ), ?_ ⟩;
+  | appL hN hN' =>
+    rename_i N
+    refine ⟨ _, FullBeta.transgen_app_r ?_ ( Relation.TransGen.single hN' ), ?_ ⟩
     · apply FullEta.step_lc_l
       assumption
-    · grind +suggestions;
-  | appR _ _ =>
-    rename_i N hN hZ';
-    obtain ⟨w, hw1, hw2⟩ : ∃ w, Relation.TransGen FullBeta M0 w ∧ w ↠ηᶠ N := by
-      exact ih M0 ( by simp +decide [ Term.size ] ) N0 N he ( by tauto );
-    refine ⟨ _, fullBetaTrans_appR hZ' hw1, FullEta.redex_app_l_cong hw2 hZ'⟩
+    · grind +suggestions
+  | appR hZ' hN =>
+    rename_i N
+    specialize ih M0 (by simp +decide [ Term.size ]) N0 N he (by tauto)
+    obtain ⟨w, hw1, hw2⟩ := ih
+    refine ⟨ _, FullBeta.transgen_app_l hZ' hw1, FullEta.redex_app_l_cong hw2 hZ'⟩
   | base hbeta => cases hbeta with | beta _ _ => cases he with
     | base he => cases he with | eta he =>
       rename_i M _ _
@@ -421,16 +306,16 @@ theorem takaP_abs {M0 N0 P : Term Var} (xs : Finset Var)
   cases hbeta with
   | base _ => cases ‹Beta N0.abs P›
   | abs ys hbeta =>
+    rename_i N
     have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
-    specialize ih (M0 ^ fvar z) (by simp +decide [Term.size]) (N0 ^ fvar z) (‹_› ^ fvar z) (hbody z (by grind)) (by grind)
-    obtain ⟨Q, hqbeta, hqeta⟩ := ih
+    obtain ⟨Q, hqbeta, hqeta⟩ :=
+      ih (M0 ^ fvar z) (by simp) (N0 ^ fvar z) (‹_› ^ fvar z) (hbody z (by grind)) (by grind)
+    exists (Q.close z).abs
     have qlc : Q.LC := by refine Xi.steps_lc_r ?_  hqbeta
                           intros _ _ _
                           apply FullBeta.step_lc_r
                           assumption
-    exists (Q.close z).abs
     rw [<- close_open z Q qlc] at hqbeta hqeta
-    rename_i N
     constructor
     · apply FullBeta.steps_abs_cong (∅ ∪ M0.fv ∪ N0.fv ∪ xs ∪ N.fv ∪ ys ∪ {z})
       · intros x hx
@@ -488,12 +373,11 @@ parallel-β local lemma).
 -/
 theorem weakCommute_fullBeta_fullEta :
     WeakCommute (FullBeta (Var := Var)) (FullEta (Var := Var)) := by
-  intro p q r hpq hqr;
-  obtain ⟨ s, hs ⟩ := postpone ( localPostpone_parBeta_fullEta ) ( by
-    convert hpq.mono _ |> Relation.ReflTransGen.trans <| hqr.mono _ using 1;
-    · exact fun a b hab => Or.inr hab;
-    · exact fun a b hab => Or.inl <| step_to_para hab);
-  obtain ⟨hs1, hs2⟩ := hs
+  intro p q r hpq hqr
+  obtain ⟨ s, hs1, hs2 ⟩ := postpone localPostpone_parBeta_fullEta (by
+    convert hpq.mono _ |> Relation.ReflTransGen.trans <| hqr.mono _
+    · exact fun a b hab => Or.inr hab
+    · exact fun a b hab => Or.inl <| step_to_para hab)
   rw [parachain_iff_redex] at hs1
   exact ⟨s, hs1, hs2⟩
 
