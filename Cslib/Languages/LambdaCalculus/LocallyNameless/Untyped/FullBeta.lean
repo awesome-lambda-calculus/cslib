@@ -63,6 +63,21 @@ theorem redex_app_l_cong (redex : M ↠βᶠ M') (lc_N : LC N) : app M N ↠β�
 theorem redex_app_r_cong (redex : M ↠βᶠ M') (lc_N : LC N) : app N M ↠βᶠ app N M' := by
   induction redex <;> grind
 
+lemma transgen_app_l (hn : LC N)
+    (h : Relation.TransGen FullBeta M M') :
+    Relation.TransGen FullBeta (app M N) (app M' N) := by
+  induction h with
+  | single _ => exact .single ( Xi.appR hn ‹_› )
+  | tail h₁ h₂ h₃ => exact h₃.tail ( Xi.appR hn h₂ )
+
+lemma transgen_app_r (hn : LC N)
+    (h : Relation.TransGen FullBeta M M') :
+    Relation.TransGen FullBeta (app N M) (app N M') := by
+  induction h with
+  | single _ => exact .single ( Xi.appL hn ‹_› )
+  | tail h₁ h₂ h₃ => exact h₃.tail ( Xi.appL hn h₂)
+
+
 set_option linter.tacticAnalysis.verifyGrindOnly false in
 /- Single reduction `app M (fvar x) ⭢βᶠ N` implies reduction on `M` or a root beta step. -/
 @[scoped grind →]
@@ -128,6 +143,16 @@ lemma redex_abs_close {x : Var} (step : M ↠βᶠ M') : (M⟦0 ↜ x⟧.abs ↠
   case refl => rfl
   case single ih => exact Relation.ReflTransGen.single (step_abs_close ih)
   case trans l r => exact Relation.ReflTransGen.trans l r
+
+/-
+Abstraction (via closing) congruence for non-empty full β-reduction.
+-/
+lemma fullBetaTrans_abs_close (x : Var) {A B : Term Var}
+    (h : Relation.TransGen FullBeta A B) :
+    Relation.TransGen FullBeta (abs (closeRec 0 x A)) (abs (closeRec 0 x B)) := by
+  induction h with
+  | single h => exact .single (step_abs_close h);
+  | tail h₁ h₂ h₃ => apply h₃.tail (step_abs_close h₂)
 
 /-- Multiple reduction of opening implies multiple reduction of abstraction. -/
 theorem step_abs_cong (xs : Finset Var) (cofin : ∀ x ∉ xs, (M ^ fvar x) ⭢βᶠ (M' ^ fvar x)) :
