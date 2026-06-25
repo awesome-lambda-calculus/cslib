@@ -159,14 +159,13 @@ lemma sn_abs_app_multiApp [DecidableEq Var] [HasFresh Var] {Ps} {M N : Term Var}
               all_goals grind
 
 lemma sn_eta_steps [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN (TransGen FullBeta) t) (t_st_t' : t ↠ηᶠ t') : SN (TransGen FullBeta) t' := by
+  (sn_t : SN (TransGen FullBeta) t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
   induction sn_t generalizing t' with
   | intro t h ih => constructor
                     intros t'' ht''
-                    have g := eta_beta_postpone t_st_t' ht''
-                    · obtain ⟨_, g, _⟩ := g
-                      apply ih _ g
-                      assumption
+                    obtain ⟨_, g, _⟩ := eta_beta_postpone t_st_t' (.single ht'')
+                    apply ih _ g
+                    assumption
 
 
 theorem acc_cong {α : Sort u} {r s : α → α → Prop}
@@ -188,24 +187,23 @@ theorem acc_cong {α : Sort u} {r s : α → α → Prop}
       rw [<- hrel] at hsz
       exact ih z hsz
 
-lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
-  unfold SN
-  rw [<- acc_transGen_iff]
-  unfold SN at sn_t
-  rw [<- acc_transGen_iff] at sn_t
-  have g := sn_eta_steps ?_ t_st_t'
-  · rw [acc_cong]
-    · exact g
-    · intros a b
-      symm
-      simpa [FullBeta, TransGen.swap] using (transGen_swap (r := FullBeta) (a := a) (b := b))
-  · unfold SN
-    rw [acc_cong]
-    · exact sn_t
-    · intros a b
-      simpa [FullBeta, TransGen.swap] using (transGen_swap (r := FullBeta) (a := a) (b := b))
+theorem SN.transGen (h : SN r a) : SN (TransGen r) a := by
+  induction h with
+  | intro x _ H =>
+    refine Acc.intro x fun y hy ↦ ?_
+    rw [Relation.TransGen.head'_iff] at hy
+    obtain ⟨_, h, hy⟩ := hy
+    rw [Relation.reflTransGen_iff_eq_or_transGen] at hy
+    cases hy with
+    | inl hy => grind
+    | inr hy => exact (H _ h).inv hy
 
+theorem acc_transGen_iff : SN (TransGen r) a ↔ SN r a :=
+  ⟨Subrelation.accessible TransGen.single, SN.transGen⟩
+
+lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
+  (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' :=
+  sn_eta_steps (SN.transGen sn_t) t_st_t'
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
