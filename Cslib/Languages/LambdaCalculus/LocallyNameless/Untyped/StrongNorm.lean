@@ -158,58 +158,7 @@ lemma sn_abs_app_multiApp [DecidableEq Var] [HasFresh Var] {Ps} {M N : Term Var}
               refine Relation.TransGen.single (Xi.base (Beta.beta ?_ ?_))
               all_goals grind
 
-/-
-lemma sn_abs_rev [DecidableEq Var] [HasFresh Var] (M : Term Var) (x : Var)
-  (hx : x ∉ M.fv) (sn_M_abs : SN FullBeta M.abs) :
-  SN FullBeta (M ^ (fvar x)) := by
-  generalize h : M.abs = M_open at sn_M_abs
-  induction sn_M_abs generalizing M with
-  | intro MM h ih =>
-      constructor
-      intro z h_step
-      subst MM
-      have z_lc : LC z := step_lc_r h_step
-      rw [<- close_open x z z_lc] at h_step
-      have g := @step_abs_close _ _ _ _ _ x h_step
-      rw [close_openRec_to_subst _ _ _ _ z_lc (LC.fvar _), subst_refl] at g
-      unfold open' at g
-      rw [<- open_close _ _ _ hx] at g
-      specialize ih _ g (z⟦0 ↜ x⟧) (by grind) (by rfl)
-      unfold open' at ih
-      rw [close_openRec_to_subst _ _ _ _ z_lc (LC.fvar _), subst_refl] at ih
-      assumption
-
-
--- trival
-lemma sn_app_rev (t s : Term Var) (h : SN FullBeta (t.app s)) :
-     ∀ {t' s' : Term Var}, t ↠βᶠ t'.abs → s ↠βᶠ s' → SN FullBeta (t' ^ s') := by
-  intros t' s' h_t_red h_s_red
-  sorry
-
-lemma foo [DecidableEq Var] [HasFresh Var] (Z M N : Term Var) (h : FullEta M N)
-  (g : ∀ {t s : Term Var}, Z ↠βᶠ t.abs → M ↠βᶠ s → SN FullBeta (t ^ s)) :
-       ∀ {t s : Term Var}, Z ↠βᶠ t.abs → N ↠βᶠ s → SN FullBeta (t ^ s) := by
-  sorry
-
--- based on baz
--- and postpone eta-step (proved)
-lemma bar [DecidableEq Var] [HasFresh Var] (Z M N : Term Var) (h : FullEta M N)
-  (g : ∀ {t s : Term Var}, M ↠βᶠ t.abs → Z ↠βᶠ s → SN FullBeta (t ^ s)) :
-       ∀ {t s : Term Var}, N ↠βᶠ t.abs → Z ↠βᶠ s → SN FullBeta (t ^ s) := by
-  sorry
-
-lemma baz [DecidableEq Var] [HasFresh Var] (s : Term Var) (s_lc : s.LC)
-  (t_st_t' : t.abs ⭢ηᶠ t'.abs) (sn_t : SN FullBeta (t ^ s)) : SN FullBeta (t' ^ s) := by
-  cases t_st_t' with
-  | base t_st_t' => cases t_st_t' with
-                    | eta t'_lc =>  unfold open' at sn_t
-                                    unfold openRec at sn_t
-                                    rw [open_lc _ _ _ t'_lc] at sn_t
-                                    exact sn_step (Xi.base (Beta.beta t'_lc s_lc)) sn_t
-  | abs xs ih => sorry
--/
-
-lemma sn_eta_step_helper [DecidableEq Var] [HasFresh Var]
+lemma sn_eta_steps [DecidableEq Var] [HasFresh Var]
   (sn_t : SN (TransGen FullBeta) t) (t_st_t' : t ↠ηᶠ t') : SN (TransGen FullBeta) t' := by
   induction sn_t generalizing t' with
   | intro t h ih => constructor
@@ -239,28 +188,23 @@ theorem acc_cong {α : Sort u} {r s : α → α → Prop}
       rw [<- hrel] at hsz
       exact ih z hsz
 
-lemma hrel : ∀ (a b : Term Var) ,
-  TransGen (fun x y => y ⭢βᶠ x) a b ↔ (fun x y => TransGen FullBeta y x) a b := by
-  intro a b
-  simpa [FullBeta, TransGen.swap] using
-  (transGen_swap (r := FullBeta) (a := a) (b := b))
-
 lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
   unfold SN
   rw [<- acc_transGen_iff]
   unfold SN at sn_t
   rw [<- acc_transGen_iff] at sn_t
-  have g := sn_eta_step_helper ?_ t_st_t'
+  have g := sn_eta_steps ?_ t_st_t'
   · rw [acc_cong]
     · exact g
     · intros a b
-      rw [hrel a b]
+      symm
+      simpa [FullBeta, TransGen.swap] using (transGen_swap (r := FullBeta) (a := a) (b := b))
   · unfold SN
     rw [acc_cong]
     · exact sn_t
     · intros a b
-      rw [hrel a b]
+      simpa [FullBeta, TransGen.swap] using (transGen_swap (r := FullBeta) (a := a) (b := b))
 
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
