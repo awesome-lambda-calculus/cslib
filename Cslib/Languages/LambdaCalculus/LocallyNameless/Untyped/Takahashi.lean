@@ -33,7 +33,7 @@ universe u
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
-variable {Var : Type u} [Infinite Var] [DecidableEq Var] [HasFresh Var]
+variable {Var : Type u}  [DecidableEq Var] [HasFresh Var]
 
 /-- The statement proved by induction: η postpones over a single parallel β-step
 out of `M`. -/
@@ -236,7 +236,6 @@ theorem star_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
 /-
 Left-application congruence for non-empty full β-reduction.
 -/
-omit [Infinite Var] in
 theorem fullBetaTrans_appL {Z M N : Term Var} (hZ : LC Z)
     (h : Relation.TransGen FullBeta M N) :
     Relation.TransGen FullBeta (app Z M) (app Z N) := by
@@ -248,7 +247,6 @@ theorem fullBetaTrans_appL {Z M N : Term Var} (hZ : LC Z)
 /-
 Right-application congruence for non-empty full β-reduction.
 -/
-omit [Infinite Var] in
 theorem fullBetaTrans_appR {Z M N : Term Var} (hZ : LC Z)
     (h : Relation.TransGen FullBeta M N) :
     Relation.TransGen FullBeta (app M Z) (app N Z) := by
@@ -284,9 +282,9 @@ Base case: the η-redex is at the top.
 -/
 theorem takaP_base {M0 P : Term Var} (hM0 : LC M0) (hbeta : FullBeta M0 P) :
     ∃ Q, Relation.TransGen FullBeta (abs (app M0 (bvar 0))) Q ∧ Q ↠ηᶠ P := by
-  refine' ⟨ _, _, _ ⟩
-  exact abs ( app P ( bvar 0 ) )
-  · refine' Relation.TransGen.single _
+  exists abs ( app P ( bvar 0 ) )
+  constructor
+  · apply Relation.TransGen.single
     apply Xi.abs ∅
     intros x hx
     unfold open' openRec
@@ -411,34 +409,6 @@ theorem takaP_appR {M0 Z N0 P : Term Var}
         · specialize hL x hx
           grind
         · grind
-
-/-
-/-
-Witness packaging for the abstraction case (β side via closing).
--/
-theorem exists_Q_abs_plus {M0 P0 W : Term Var} (z : Var)
-    (hz0 : z ∉ fv M0) (hzP : z ∉ fv P0)
-    (hbeta : Relation.TransGen FullBeta (M0 ^ fvar z) W)
-    (heta : W ↠ηᶠ (P0 ^ fvar z)) :
-    ∃ Q, Relation.TransGen FullBeta (Term.abs M0) Q ∧ Q ↠ηᶠ (Term.abs P0) := by
-  -- By `fullBetaTrans_abs_close z hbeta`, we get `Relation.TransGen FullBeta (abs (closeRec 0 z (M0 ^ fvar z))) (abs (closeRec 0 z W))`.
-  have h_trans : Relation.TransGen FullBeta (abs (closeRec 0 z (M0 ^ fvar z))) (abs (closeRec 0 z W)) := by
-    convert fullBetaTrans_abs_close z hbeta using 1;
-  refine' ⟨ _, _, _ ⟩;
-  exact ( closeRec 0 z W ).abs;
-  · convert h_trans using 1;
-    rw [ show closeRec 0 z ( M0 ^ fvar z ) = M0 from ?_ ];
-    symm
-    apply Term.open_close _ _ _ hz0
-  · rw [<- close_open z W] at heta
-    apply FullEta.redex_abs_cong
-    · sorry
-    · sorry
-    · sorry
-    · sorry
-    -- convert XiStar.abs_close ( fun _ _ => Eta.regular ) ( fun _ _ hab y w hw => Eta.subst hab y hw ) z heta using 1;
-    -- exact congr_arg _ ( by exact Eq.symm ( Term.close_open hzP 0 ) )
--/
 
 /-
 η-step under a binder.
