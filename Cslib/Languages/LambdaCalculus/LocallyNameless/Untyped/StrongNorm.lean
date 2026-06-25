@@ -205,6 +205,39 @@ lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' :=
   sn_eta_steps (SN.transGen sn_t) t_st_t'
 
+lemma sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
+  (sn_t : SN FullBeta t') (t_st_t' : t ↠ηᶠ t') : SN FullBeta t := by
+  induction sn_t with
+  | intro x h ih => sorry
+
+theorem fullBeta_of_fullBetaEta (h : Normal FullBetaEta t) : Normal FullBeta t := by
+  intros g
+  apply h
+  obtain ⟨t', g⟩ := g
+  exists t'
+  grind
+
+/-
+theorem eta_betaNF_exists {L N : Term Var} (h : L ↠ηᶠ N) (hN : Normal FullBeta N) :
+    ∃ P, L ↠βᶠ P ∧ Normal Beta P :=
+  ((SNi.stepsEtaExpand h (NormalForm.toSNi hN)).toSNβ).wn
+
+
+theorem hasBetaNF_of_hasBetaEtaNF [DecidableEq Var] [HasFresh Var] (h : Normalizable FullBetaEta t) :
+  Normalizable FullBeta t := by
+  obtain ⟨t'', h, hnormal⟩ := h
+  apply eta_postponement at h
+  obtain ⟨t', h, heta⟩ := h
+  apply fullBeta_of_fullBetaEta at hnormal
+  apply Relation.SN.of_normal at hnormal
+  have g := sn_eta_step hnormal heta
+  sorry
+
+
+theorem betaeta_factor_betaNF {M N : Term Var} (h : StepsE M N) (hN : NormalFormE N) :
+    ∃ P, Steps M P ∧ NormalForm P ∧ StepsEta P N := by
+-/
+
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
 end Cslib
