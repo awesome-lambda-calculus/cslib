@@ -28,6 +28,9 @@ variable [DecidableEq Var]
 theorem subst_fresh (x : Var) (t sub : Term Var) (nmem : x ∉ t.fv) : t[x := sub] = t := by
   induction t <;> grind
 
+theorem close_fresh {k} (x : Var) (t : Term Var) (nmem : x ∉ t.fv) : t ⟦k ↜ x⟧ = t := by
+  induction t generalizing k <;> grind
+
 /- Opening and closing are inverses. -/
 lemma open_close (x : Var) (t : Term Var) (k : ℕ) (nmem : x ∉ t.fv) : t = t⟦k ↝ fvar x⟧⟦k ↜ x⟧ := by
   induction t generalizing k <;> grind
