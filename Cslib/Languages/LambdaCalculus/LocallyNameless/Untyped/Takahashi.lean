@@ -443,7 +443,7 @@ theorem comm_base {M0 u : Term Var} (hM0 : LC M0)
     u = M0 ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta M0 u' := by
   obtain ⟨ S', hS' ⟩ : ∃ S', u = abs S' := by grind +splitIndPred
   have hbody : ∃ ys : Finset Var, ∀ x ∉ ys, FullBeta ( Term.app M0 ( Term.fvar x ) ) ( S' ^ Term.fvar x ) := by
-    obtain ⟨ ys, hys ⟩ := hbeta;
+    obtain ⟨ ys, hys ⟩ := hbeta
     rename_i xs h
     exists xs
     grind
@@ -454,10 +454,10 @@ theorem comm_base {M0 u : Term Var} (hM0 : LC M0)
       exact ⟨ _, hbody z (by grind), rfl ⟩;
     cases hM0''.1
     · cases ‹Beta ( M0.app ( fvar z ) ) M0''›
-      grind;
+      grind
     · cases ‹Xi Beta ( fvar z ) _›
-      cases ‹Beta ( fvar z ) _›;
-    · grind;
+      cases ‹Beta ( fvar z ) _›
+    · grind
   cases hM0'' <;> rename_i hM0''
   · have hS'_eq : S' = Term.app (closeRec 0 z M0'') (Term.bvar 0) := by
       have hS'_eq : closeRec 0 z (S' ^ fvar z) = S' := by
@@ -518,20 +518,24 @@ theorem comm_appR {Z M N u : Term Var}
     (hZ : LC Z) (hxi : FullEta M N) (hbeta : FullBeta (app M Z) u) :
     u = app N Z ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta (app N Z) u' := by
   cases hbeta with
-  | base _ =>
-    cases ‹_›;
-    cases hxi
-    · cases ‹Eta _ _›;
-      grind
-    · rename_i M hM N xs hN
+  | base hbeta =>
+    cases ‹_›
+    cases hxi with
+    | base _ => cases ‹Eta _ _›
+                grind
+    | abs xs hxi =>
+      rename_i M hM _ N
       right
       exists N ^ Z
       constructor
-      . grind
-      . apply Xi.base
-        constructor
+      · refine FullEta.steps_open_cong_l xs ?_ hZ
         grind
-        grind
+      · apply Xi.base
+        refine Beta.beta ?_ hZ
+        have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+        specialize hxi x (by grind)
+        apply FullEta.step_lc_r at hxi
+        apply open_abs_lc hxi
   | appL _ _ =>
     rename_i N' hN' hbeta'
     right
@@ -540,8 +544,8 @@ theorem comm_appR {Z M N u : Term Var}
     · apply_rules [ Relation.ReflTransGen.single, Xi.appL ]
       exact Xi.appR ( FullBeta.step_lc_r hbeta' ) hxi
     · exact Xi.appL hxi.step_lc_r hbeta'
-  | appR _ _ =>
-    rename_i M' hM' hZ';
+  | appR hZ' hM' =>
+    rename_i M'
     specialize ih M (Nat.lt_add_of_pos_right ( Nat.succ_pos _ ) ) N M' hxi hM'
     rcases ih with ( rfl | ⟨ u', hu', hu'' ⟩ )
     · exact Or.inl rfl
@@ -554,11 +558,9 @@ theorem comm_exists_abs {N M' w : Term Var} (z : Var)
     (hzN : z ∉ fv N) (hzM' : z ∉ fv M')
     (heta : (M' ^ fvar z) ↠ηᶠ w) (hbeta : FullBeta (N ^ fvar z) w) :
     ∃ u', (abs M') ↠ηᶠ u' ∧ FullBeta (abs N) u' := by
-  refine' ⟨ _, _, _ ⟩;
-  exact abs ( closeRec 0 z w );
-  · have hM' : M' = closeRec 0 z (M' ^ fvar z) := by
-      exact Eq.symm ( Term.close_open hzM' 0 );
-    convert XiStar.abs_close ( fun _ _ => Eta.regular ) ( fun _ _ hab y w hw => Eta.subst hab y hw ) z _;
+  exists abs ( closeRec 0 z w )
+  constructor
+  · convert XiStar.abs_close ( fun _ _ => Eta.regular ) ( fun _ _ hab y w hw => Eta.subst hab y hw ) z _;
     exact heta;
   · convert Xi.abs_close ( fun _ _ => Beta.regular ) ( fun _ _ hab y w hw => Beta.subst hab y hw ) z hbeta using 1;
     exact congr_arg _ ( Eq.symm ( close_open hzN 0 ) )
