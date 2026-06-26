@@ -206,9 +206,18 @@ lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   sn_eta_steps (SN.transGen sn_t) t_st_t'
 
 lemma sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN FullBeta t') (t_st_t' : t ↠ηᶠ t') : SN FullBeta t := by
-  induction sn_t with
-  | intro x h ih => sorry
+  (sn_t : SN FullBeta t') (t_st_t' : FullEta t t') : SN FullBeta t := by
+  induction sn_t generalizing t with
+  | intro t' h ih =>  constructor
+                      intros t'' ht''
+                      have h := beta_eta_commute t_st_t' ht''
+                      cases h with
+                      | inl h =>  subst t'
+                                  constructor
+                                  exact h
+                      | inr h =>  obtain ⟨u, heta, hbeta⟩ := h
+                                  apply ih _ hbeta
+                                  all_goals sorry
 
 theorem fullBeta_of_fullBetaEta (h : Normal FullBetaEta t) : Normal FullBeta t := by
   intros g
