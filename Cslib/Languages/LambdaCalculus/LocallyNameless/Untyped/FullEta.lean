@@ -153,6 +153,15 @@ lemma steps_open_cong_r {s t t' : Term Var} (lc_s : LC s.abs) (steps : t ↠η�
   case refl => rfl
   case head _ _ st _ ih => exact .trans (step_open_cong_r lc_s st) ih
 
+theorem steps_open_cong_l {C D : Term Var} (xs : Finset Var)
+  (h : ∀ x ∉ xs, (C ^ fvar x) ↠ηᶠ (D ^ fvar x)) {u : Term Var} (hu : LC u) :
+  (C ^ u) ↠ηᶠ (D ^ u) := by
+  have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
+  have hz_fv_C : z ∉ Term.fv C := by grind
+  have hz_fv_D : z ∉ Term.fv D := by grind
+  rw [Term.subst_intro _ _ _ hz_fv_C, Term.subst_intro _ _ _ hz_fv_D]
+  exact steps_subst_cong_l _ _ _ (h z (by grind)) hu
+
 lemma step_size (step : M ⭢ηᶠ M') : M'.size < M.size := by
   induction step with
   | abs xs _ => grind [fresh_exists <| free_union [fv] Var]
