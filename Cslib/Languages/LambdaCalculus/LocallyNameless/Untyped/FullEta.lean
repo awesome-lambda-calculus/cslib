@@ -179,6 +179,22 @@ lemma close_eta_steps (hx_M : x ∉ M.fv) (st_M : ReflGen FullEta (M ^ fvar x) N
   | single st =>
     exact .single (Xi.abs {x} (by grind [step_subst_cong_l]))
 
+/-- A single full η-step strictly decreases `size`. -/
+theorem fullEta_size_lt {a b : Term Var} (h : FullEta a b) : size b < size a := by
+  induction h with
+  | base hb =>
+      cases hb
+      simp +arith +decide [Term.size]
+  | appL _ _ ih => simp +arith +decide [Term.size] at *; linarith
+  | appR _ _ ih => simp_all +decide [Term.size]
+  | abs k hbody ih =>
+      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
+      have hsize : ∀ (t : Term Var), (t ^ fvar x).size = t.size := fun t => size_open_fvar x t
+      have := ih x (by grind)
+      simp only [Term.size]
+      rw [hsize, hsize] at this
+      exact Nat.succ_lt_succ this
+
 end LambdaCalculus.LocallyNameless.Untyped.Term.FullEta
 
 end Cslib
