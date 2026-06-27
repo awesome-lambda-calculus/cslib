@@ -190,6 +190,142 @@ lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' :=
   sn_eta_steps (SN.transGen sn_t) t_st_t'
 
+/-!
+# βη strong normalisation equals β strong normalisation
+
+This file proves the strong-normalisation form of η-postponement:
+
+  **A term is βη-strongly-normalising iff it is β-strongly-normalising.**
+
+In symbols, with `BetaEtaStep M N := FullBeta M N ∨ FullEta M N` the combined
+one-step relation (from `Defs.lean`), and `SN R x := Acc (flip R) x`:
+
+  `SN (Relation.TransGen BetaEtaStep) t ↔ SN (Relation.TransGen FullBeta) t`.
+
+The forward direction is immediate (`FullBeta ⊆ BetaEtaStep`).  The backward
+direction is de Vrijer's theorem (β-SN is preserved under η-expansion).  It is
+proved here *not* via a term-size measure (which is known to fail for absorbed
+β-steps), but via η-postponement: a β-step taken after a chain of η-steps can be
+"reset" to a genuine β-reduction from the original term followed by η-steps,
+using the strong single-step postponement lemma `eta_beta_postpone`.
+-/
+
+
+open Term Relation
+
+/-! ## Generic accessibility conversions between a relation and its transitive closure -/
+
+/-! ## η-reduction is well-founded -/
+
+/-- `FullEta` (forward) is well-founded: every term is `flip FullEta`-accessible. -/
+theorem wellFoundedFullEta [DecidableEq Var] [HasFresh Var] :
+  Relation.Terminating (FullEta : Term Var → Term Var → Prop) :=
+    Subrelation.wf (fun {a b} (h : flip FullEta a b) => FullEta.fullEta_size_lt h)
+      (InvImage.wf size Nat.lt_wfRel.wf)
+
+/-! ## The backward direction: β-SN implies βη-SN -/
+
+/-- Inner step of the backward direction.  Given that every genuine β-reduct of
+the *original* term `a0` is βη-accessible (`IHB`), and an η-chain `a0 ⟶η* a'`,
+every η-accessible such `a'` is βη-accessible.
+
+The proof is by induction on the η-accessibility of `a'`.  A β-step
+`a' ⟶β b` is handled by η-postponement (`eta_beta_postpone`): from
+`a0 ⟶η* a' ⟶β b` we obtain `a0 ⟶β⁺ d ⟶η* b`, so `d` is βη-accessible by `IHB`
+and `b` follows by descent along η.  An η-step `a' ⟶η b` is handled by the inner
+induction hypothesis. -/
+theorem betaEtaSN_inner [DecidableEq Var] [HasFresh Var]
+    (a0 : Term Var)
+    (IHB : ∀ d, Relation.TransGen FullBeta a0 d → SN (FullBetaEta : Term Var → Term Var → Prop) d)
+    {a' : Term Var} (hE : SN (FullEta : Term Var → Term Var → Prop) a') :
+    a0 ↠ηᶠ a' → SN (FullBetaEta : Term Var → Term Var → Prop) a' := by
+  induction hE with
+  | intro a' hEacc IHE =>
+      intro hrel
+      refine Acc.intro a' ?_
+      intro b hb
+      -- hb : flip BetaEtaStep b a', i.e. BetaEtaStep a' b
+      rcases hb with hbeta | heta
+      · -- β-step a' ⟶β b
+        obtain ⟨d, hd1, hd2⟩ := eta_beta_postpone hrel (.single hbeta)
+        exact Relation.SN.of_rel_reflTransGen (IHB d hd1) (by grind)
+      · -- η-step a' ⟶η b
+        exact IHE b heta (hrel.tail heta)
+
+/-- **Backward direction.** If `t` is β-strongly-normalising (accessible for
+single β-steps), then it is βη-strongly-normalising. -/
+theorem sn_betaEta_of_sn_fullBeta [DecidableEq Var] [HasFresh Var]
+    {t : Term Var}
+    (hB : SN ((Relation.TransGen FullBeta) : Term Var → Term Var → Prop) t) :
+    SN (FullBetaEta : Term Var → Term Var → Prop) t := by
+  induction hB with
+  | intro t hBacc IHB =>
+      -- IHB : ∀ d, TransGen FullBeta t d → Acc (flip BetaEtaStep) d
+      exact betaEtaSN_inner t (fun d hd => IHB d hd) (wellFoundedFullEta.apply t)
+        Relation.ReflTransGen.refl
+
+/-! ## The forward direction and the equivalence -/
+
+/-- **Forward direction.** βη-SN implies β-SN (β-steps are βη-steps). -/
+theorem sn_fullBeta_of_sn_betaEta {t : Term Var}
+    (h : SN (FullBetaEta : Term Var → Term Var → Prop) t) :
+    SN (FullBeta : Term Var → Term Var → Prop) t := by
+  refine Subrelation.accessible ?_ h
+  intro a b hab
+  exact Or.inl hab
+
+/-- **A term is βη-strongly-normalising iff it is β-strongly-normalising.**
+
+Here strong normalisation of a relation `R` at `t` is `Acc (flip R) t` (no
+infinite `R`-reduction sequence starts at `t`), and `Relation.TransGen` is the
+transitive closure (one-or-more steps). -/
+theorem betaEta_sn_iff_beta_sn [DecidableEq Var] [HasFresh Var] (t : Term Var) :
+    SN FullBetaEta t ↔ SN FullBeta t := by
+  constructor
+  · apply sn_fullBeta_of_sn_betaEta
+  · intro h
+    apply sn_betaEta_of_sn_fullBeta
+    rw [Relation.SN.iff_transGen]
+    assumption
+
+lemma foo [DecidableEq Var] [HasFresh Var] (n : Nat)
+  (hn : t.size = n)
+  (t_st_t' : Relation.ReflTransGen FullEta t t')
+  (sn_t : SN (Relation.TransGen FullBeta) t') :
+          SN (Relation.TransGen FullBeta) t := by
+  induction n using Nat.strong_induction_on generalizing t t' with
+  | h n ih => induction sn_t generalizing t n with
+    | intro t' h1 ih1 =>  constructor
+                          intros t'' ht''
+                          have h := foo_transbeta t_st_t' ht''
+                          obtain ⟨u, heta, hbeta⟩ := h
+                          rw [Relation.reflTransGen_iff_eq_or_transGen] at hbeta
+                          cases hbeta with
+                          | inl h =>  subst u
+                                      rw [Relation.reflTransGen_iff_eq_or_transGen] at heta
+                                      cases heta with
+                                      | inl heta => subst t''
+                                                    constructor
+                                                    grind
+                                      | inr heta => apply ih
+                                                    pick_goal 2
+                                                    rfl
+                                                    pick_goal 2
+                                                    apply Relation.TransGen.to_reflTransGen
+                                                    assumption
+                                                    pick_goal 2
+                                                    constructor
+                                                    grind
+                                                    all_goals sorry
+                          | inr h =>  apply ih1
+                                      exact h
+                                      pick_goal 3
+                                      assumption
+                                      pick_goal 2
+                                      rfl
+                                      all_goals sorry
+
+
 lemma sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
   (t_st_t' : Relation.ReflTransGen FullEta t t')
   (sn_t : SN (Relation.TransGen FullBeta) t') :
@@ -238,6 +374,7 @@ theorem hasBetaNF_of_hasBetaEtaNF [DecidableEq Var] [HasFresh Var]
 theorem betaeta_factor_betaNF {M N : Term Var} (h : StepsE M N) (hN : NormalFormE N) :
     ∃ P, Steps M P ∧ NormalForm P ∧ StepsEta P N := by
 -/
+
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
