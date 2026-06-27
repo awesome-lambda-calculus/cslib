@@ -192,18 +192,24 @@ lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   sn_eta_steps (SN.transGen sn_t) t_st_t'
 
 lemma sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN FullBeta t') (t_st_t' : FullEta t t') : SN FullBeta t := by
+  (t_st_t' : Relation.ReflTransGen FullEta t t')
+  (sn_t : SN (Relation.TransGen FullBeta) t') :
+          SN (Relation.TransGen FullBeta) t := by
   induction sn_t generalizing t with
   | intro t' h ih =>  constructor
                       intros t'' ht''
-                      have h := beta_eta_commute t_st_t' ht''
-                      cases h with
-                      | inl h =>  subst t'
-                                  constructor
-                                  exact h
-                      | inr h =>  obtain ⟨u, heta, hbeta⟩ := h
-                                  apply ih _ hbeta
-                                  all_goals sorry
+                      have h := foo_transbeta t_st_t' ht''
+                      obtain ⟨u, heta, hbeta⟩ := h
+                      rw [Relation.reflTransGen_iff_eq_or_transGen] at hbeta
+                      cases hbeta with
+                      | inl h =>  subst u
+                                  rw [Relation.reflTransGen_iff_eq_or_transGen] at heta
+                                  cases heta with
+                                  | inl heta => subst t''
+                                                constructor
+                                                grind
+                                  | inr heta => sorry -- maybe impossible
+                      | inr h =>  apply ih _ h heta
 
 theorem fullBeta_of_fullBetaEta (h : Normal FullBetaEta t) : Normal FullBeta t := by
   intros g
@@ -218,7 +224,8 @@ theorem eta_betaNF_exists {L N : Term Var} (h : L ↠ηᶠ N) (hN : Normal FullB
   ((SNi.stepsEtaExpand h (NormalForm.toSNi hN)).toSNβ).wn
 
 
-theorem hasBetaNF_of_hasBetaEtaNF [DecidableEq Var] [HasFresh Var] (h : Normalizable FullBetaEta t) :
+theorem hasBetaNF_of_hasBetaEtaNF [DecidableEq Var] [HasFresh Var]
+  (h : Normalizable FullBetaEta t) :
   Normalizable FullBeta t := by
   obtain ⟨t'', h, hnormal⟩ := h
   apply eta_postponement at h
