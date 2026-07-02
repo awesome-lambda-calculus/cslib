@@ -177,6 +177,16 @@ theorem localPostpone_parBeta_fullEta :
   fun _ _ _ he hp => eta_par_local _ _ _ he hp
 
 
+theorem betaEtaStar_le_parOrEtaStar {M N: Term Var}
+  (h : M ↠βηᶠ N) : Relation.ReflTransGen (fun a b => a ⭢ₚ b ∨ a ⭢ηᶠ b) M N := by
+  induction h with
+  | refl => grind
+  | tail h h' ih =>
+    refine .trans ih ?_
+    cases h' with
+    | inl h =>  apply step_to_para at h
+                grind
+    | inr h => grind
 /-
 **η-postponement.** If `M` reduces to `N` under combined βη-reduction, then
 there is an intermediate term `L` with `M ⟶β* L` and `L ⟶η* N`: every η-step can
@@ -184,8 +194,7 @@ be postponed past the β-steps.
 -/
 theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
     ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
-  obtain ⟨L, hL₁, hL₂⟩ := postpone localPostpone_parBeta_fullEta (.mono (fun a b hab => by
-    cases hab <;> [exact Or.inl (step_to_para ‹_›); exact Or.inr ‹_›]) h)
+  obtain ⟨L, hL₁, hL₂⟩ := postpone localPostpone_parBeta_fullEta (betaEtaStar_le_parOrEtaStar h)
   rw [parachain_iff_redex] at hL₁
   exact ⟨ L, hL₁, hL₂ ⟩
 
@@ -613,14 +622,14 @@ theorem comm_prop (a : Term Var) : CommProp a := by
   intro b u he hbeta
   exact key (size a) a rfl b u he hbeta
 
+/- TODO: abandoned: stronglyCommute_eta_beta
+-/
 /-- **Commutation lemma** (final form): if `a ⟶η b` and `a ⟶β u` then either
 `u = b`, or there is `u'` with `u ⟶η* u'` and `b ⟶β u'`. -/
 theorem beta_eta_commute {a b u : Term Var}
     (heta : FullEta a b) (hbeta : FullBeta a u) :
     u = b ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta b u' :=
   comm_prop a b u heta hbeta
-
-
 
 /-!
 # Commutation of *multi-step* η-reduction with a single β-step
