@@ -29,11 +29,15 @@ namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
 variable {α : Type*} {A B : α → α → Prop}
 
-/-- Weak commutation: a `B`-star followed by an `A`-star can be reorganized into
-an `A`-star followed by a `B`-star. -/
+@[grind]
+def Postpone (A B : α → α → Prop) : Prop :=
+  ∀ ⦃p q r⦄, B p q → A q r → ∃ s, A p s ∧ B s r
+
+/-
 def WeakCommute (A B : α → α → Prop) : Prop :=
   ∀ ⦃p q r⦄, Relation.ReflTransGen B p q → Relation.ReflTransGen A q r
       → ∃ s, Relation.ReflTransGen A p s ∧ Relation.ReflTransGen B s r
+-/
 
 /-- Strong local postponement: a single `B`-step followed by a single `A`-step
 reorganizes into a *non-empty* sequence of `A`-steps followed by a `B`-star. -/
@@ -80,8 +84,10 @@ theorem postpone (h : LocalPostpone A B) {x y : α}
 A single `B`-step followed by a non-empty `A`-sequence reorganizes into a
 non-empty `A`-sequence followed by a `B`-star.
 -/
-theorem single_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
-    {x y z : α} (hxy : B x y) (hyz : Relation.TransGen A y z) :
+theorem single_over_plus
+  (hW : Postpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
+  (hL : StrongLocal A B)
+  {x y z : α} (hxy : B x y) (hyz : Relation.TransGen A y z) :
     ∃ (w : α), Relation.TransGen A x w ∧ Relation.ReflTransGen B w z := by
   induction hyz with
   | single hyz => exact hL hxy hyz
@@ -93,13 +99,38 @@ theorem single_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
 A `B`-star followed by a non-empty `A`-sequence reorganizes into a non-empty
 `A`-sequence followed by a `B`-star.
 -/
-theorem star_over_plus (hW : WeakCommute A B) (hL : StrongLocal A B)
+theorem star_over_plus
+  (hW : Postpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
+  (hL : StrongLocal A B)
     {a b c : α} (hab : Relation.ReflTransGen B a b) (hbc : Relation.TransGen A b c) :
     ∃ w, Relation.TransGen A a w ∧ Relation.ReflTransGen B w c := by
   induction hab generalizing c with
   | refl => exact ⟨ c, hbc, by rfl ⟩
   | tail _ hB hA =>
     exact single_over_plus hW hL hB hbc |> fun ⟨ w, hw₁, hw₂ ⟩ => hA hw₁ |> fun ⟨ x, hx₁, hx₂ ⟩ => ⟨ x, hx₁, hx₂.trans hw₂ ⟩
+
+theorem postpone_a (h : Postpone A B) :
+   Postpone (Relation.ReflTransGen A) B := by
+  intros p q r hB hA
+  induction hA generalizing p with grind
+
+theorem postpone_b (h : Postpone A B) :
+   Postpone A (Relation.ReflTransGen B) := by
+  intros p q r hB hA
+  induction hB generalizing r with grind
+
+theorem postpone_ab (h : Postpone A B) :
+   Postpone (Relation.ReflTransGen A) (Relation.ReflTransGen B) := by
+  intros p q r hB hA
+  induction hB generalizing r with
+  | refl => grind
+  | tail _ b_step ih =>
+    -- 1. Push the final single B step past the A* steps
+    have ⟨s', hA_s', hB_s'⟩ := postpone_a h b_step hA
+    -- 2. Use the induction hypothesis to push the rest of the B* steps past the new A* steps
+    have ⟨s'', hA_s'', hB_s''⟩ := ih hA_s'
+    -- 3. Combine the results to form the full A* and B* paths
+    exact ⟨s'', hA_s'', Relation.ReflTransGen.tail hB_s'' hB_s'⟩
 
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
