@@ -30,65 +30,29 @@ namespace LambdaCalculus.LocallyNameless.Untyped.Term
 variable {α : Type*} {A B : α → α → Prop}
 
 @[grind]
-def Postpone (A B : α → α → Prop) : Prop :=
+def LocalPostpone (A B : α → α → Prop) : Prop :=
   ∀ ⦃p q r⦄, B p q → A q r → ∃ s, A p s ∧ B s r
-
-/-
-def WeakCommute (A B : α → α → Prop) : Prop :=
-  ∀ ⦃p q r⦄, Relation.ReflTransGen B p q → Relation.ReflTransGen A q r
-      → ∃ s, Relation.ReflTransGen A p s ∧ Relation.ReflTransGen B s r
--/
 
 /-- Strong local postponement: a single `B`-step followed by a single `A`-step
 reorganizes into a *non-empty* sequence of `A`-steps followed by a `B`-star. -/
-def StrongLocal (A B : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, B x y → A y z → ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
+def WeakPostpone (A B : α → α → Prop) : Prop :=
+  ∀ ⦃x y z⦄, B x y → A y z →
+    ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
 
-/-- Local postponement hypothesis: `B` followed by a single `A` reorganizes into
-a single `A` followed by a sequence of `B`s. -/
-def LocalPostpone (A B : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, B x y → A y z → ∃ q, A x q ∧ Relation.ReflTransGen B q z
+def WeakWeakPostpone (A B : α → α → Prop) : Prop :=
+  ∀ ⦃x y z⦄, B x y → Relation.TransGen A y z →
+    ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
 
-/-
-A sequence of `B`-steps followed by a single `A`-step reorganizes into a
-sequence of `A`-steps followed by a sequence of `B`-steps.
--/
-theorem swap_star_single (h : LocalPostpone A B) {p q r : α}
-    (hpq : Relation.ReflTransGen B p q) (hqr : A q r) :
-    ∃ w, Relation.ReflTransGen A p w ∧ Relation.ReflTransGen B w r := by
-      revert hpq hqr
-      intro hpq hqr
-      induction hpq generalizing r with
-      | refl => exact ⟨ r, .single hqr, .refl ⟩
-      | tail _ ih h' =>
-        obtain ⟨ w, hw₁, hw₂ ⟩ := h ih hqr
-        exact h' hw₁ |> fun ⟨ x, hx₁, hx₂ ⟩ => ⟨ x, hx₁, hx₂.trans hw₂ ⟩
-
-/-
-**Abstract postponement.** In any mixed reduction sequence, all `B`-steps can
-be postponed past all `A`-steps.
--/
-theorem postpone (h : LocalPostpone A B) {x y : α}
-    (hxy : Relation.ReflTransGen (fun a b => A a b ∨ B a b) x y) :
-    ∃ w, Relation.ReflTransGen A x w ∧ Relation.ReflTransGen B w y := by
-      induction hxy with
-      | refl => exact ⟨ x, by rfl, by rfl ⟩
-      | tail _ ih _ =>
-        obtain ⟨ w, hw₁, hw₂ ⟩ := ‹_›
-        rcases ih with ( ih | ih )
-        · obtain ⟨ q, hq₁, hq₂ ⟩ := swap_star_single h hw₂ ih
-          exact ⟨ q, hw₁.trans hq₁, hq₂ ⟩
-        · exact ⟨ w, hw₁, hw₂.tail ih ⟩
 
 /-
 A single `B`-step followed by a non-empty `A`-sequence reorganizes into a
 non-empty `A`-sequence followed by a `B`-star.
 -/
 theorem single_over_plus
-  (hW : Postpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
-  (hL : StrongLocal A B)
-  {x y z : α} (hxy : B x y) (hyz : Relation.TransGen A y z) :
-    ∃ (w : α), Relation.TransGen A x w ∧ Relation.ReflTransGen B w z := by
+  (hW : LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
+  (hL : WeakPostpone A B) :
+  WeakWeakPostpone A B := by
+  intros x y z hxy hyz
   induction hyz with
   | single hyz => exact hL hxy hyz
   | tail h₁ h₂ h₃ =>
@@ -100,27 +64,27 @@ A `B`-star followed by a non-empty `A`-sequence reorganizes into a non-empty
 `A`-sequence followed by a `B`-star.
 -/
 theorem star_over_plus
-  (hW : Postpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
-  (hL : StrongLocal A B)
-    {a b c : α} (hab : Relation.ReflTransGen B a b) (hbc : Relation.TransGen A b c) :
-    ∃ w, Relation.TransGen A a w ∧ Relation.ReflTransGen B w c := by
+  (hW : LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
+  (hL : WeakPostpone A B) :
+  LocalPostpone (Relation.TransGen A) (Relation.ReflTransGen B) := by
+  intros a b c hab hbc
   induction hab generalizing c with
   | refl => exact ⟨ c, hbc, by rfl ⟩
   | tail _ hB hA =>
     exact single_over_plus hW hL hB hbc |> fun ⟨ w, hw₁, hw₂ ⟩ => hA hw₁ |> fun ⟨ x, hx₁, hx₂ ⟩ => ⟨ x, hx₁, hx₂.trans hw₂ ⟩
 
-theorem postpone_a (h : Postpone A B) :
-   Postpone (Relation.ReflTransGen A) B := by
+theorem postpone_a (h : LocalPostpone A B) :
+   LocalPostpone (Relation.ReflTransGen A) B := by
   intros p q r hB hA
   induction hA generalizing p with grind
 
-theorem postpone_b (h : Postpone A B) :
-   Postpone A (Relation.ReflTransGen B) := by
+theorem postpone_b (h : LocalPostpone A B) :
+   LocalPostpone A (Relation.ReflTransGen B) := by
   intros p q r hB hA
   induction hB generalizing r with grind
 
-theorem postpone_ab (h : Postpone A B) :
-   Postpone (Relation.ReflTransGen A) (Relation.ReflTransGen B) := by
+theorem postpone_ab (h : LocalPostpone A B) :
+   LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B) := by
   intros p q r hB hA
   induction hB generalizing r with
   | refl => grind
