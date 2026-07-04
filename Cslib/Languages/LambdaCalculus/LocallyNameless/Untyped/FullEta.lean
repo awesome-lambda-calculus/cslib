@@ -7,6 +7,7 @@ Authors: Maximiliano Onofre Martínez
 module
 
 public import Cslib.Foundations.Relation.Attr
+public import Cslib.Foundations.Relation.Defs
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Properties
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
 
@@ -194,6 +195,14 @@ theorem fullEta_size_lt {a b : Term Var} (h : FullEta a b) : size b < size a := 
       simp only [Term.size]
       rw [hsize, hsize] at this
       exact Nat.succ_lt_succ this
+
+/- `FullEta` (forward) is well-founded: every term is `flip FullEta`-accessible.-/
+open Relation in
+theorem wellFoundedFullEta :
+  Terminating (FullEta : Term Var → Term Var → Prop) :=
+    Subrelation.wf (fun {a b} (h : flip FullEta a b) => FullEta.fullEta_size_lt h)
+      (InvImage.wf size Nat.lt_wfRel.wf)
+
 
 end LambdaCalculus.LocallyNameless.Untyped.Term.FullEta
 
