@@ -11,6 +11,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.MultiApp
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LcAt
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Takahashi
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEta
 public import Cslib.Foundations.Relation.Confluence
 
 /-! Strong normalization (termination) for full beta-reduction of untyped lambda calculus. -/
@@ -289,6 +290,7 @@ theorem betaEta_sn_iff_beta_sn [DecidableEq Var] [HasFresh Var] (t : Term Var) :
     rw [Relation.SN.iff_transGen]
     assumption
 
+/-
 lemma foo [DecidableEq Var] [HasFresh Var] (n : Nat)
   (hn : t.size = n)
   (t_st_t' : Relation.ReflTransGen FullEta t t')
@@ -347,14 +349,7 @@ lemma sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
                                   | inr heta => sorry -- maybe impossible
                       | inr h =>  apply ih _ h heta
 
-theorem fullBeta_of_fullBetaEta (h : Normal FullBetaEta t) : Normal FullBeta t := by
-  intros g
-  apply h
-  obtain ⟨t', g⟩ := g
-  exists t'
-  grind
 
-/-
 theorem eta_betaNF_exists {L N : Term Var} (h : L ↠ηᶠ N) (hN : Normal FullBeta N) :
     ∃ P, L ↠βᶠ P ∧ Normal Beta P :=
   ((SNi.stepsEtaExpand h (NormalForm.toSNi hN)).toSNβ).wn

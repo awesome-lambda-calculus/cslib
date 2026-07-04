@@ -150,6 +150,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.StrongNorm
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.TakahashiSupport
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Takahashi
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEta
 public import Cslib.Languages.LambdaCalculus.Named.Untyped.Basic
 public import Cslib.Logics.HML.Basic
 public import Cslib.Logics.HML.LogicalEquivalence
