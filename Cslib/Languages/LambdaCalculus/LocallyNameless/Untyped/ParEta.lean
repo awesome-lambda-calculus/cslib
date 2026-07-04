@@ -197,45 +197,20 @@ theorem FullBetaStar.lc_right {M N : Term Var} (hM : LC M) (h : M ↠βᶠ N) :
   | refl => exact hM
   | tail h step ih => apply FullBeta.step_lc_r step
 
-/-- Local closure is preserved by η-reduction (reflexive-transitive). -/
+/- Local closure is preserved by η-reduction (reflexive-transitive). -/
 theorem FullEtaStar.lc_right {M N : Term Var} (hM : LC M) (h : M ↠ηᶠ N) :
     LC N := by
   induction h with
   | refl => exact hM
   | tail _ step ih => exact FullEta.step_lc_r step
 
-/-- If `a ↠η b` and `b` is locally closed, then so is `a` (every η-step relates
+/- If `a ↠η b` and `b` is locally closed, then so is `a` (every η-step relates
 locally closed terms). -/
 theorem FullEtaStar.lc_left {a b : Term Var} (hb : LC b) (h : a ↠ηᶠ b) :
     LC a := by
   induction h using Relation.ReflTransGen.head_induction_on with
   | refl => exact hb
   | head step _ _ => exact FullEta.step_lc_l step
-
-/-- Substitutivity of β-star. -/
-theorem FullBetaStar.subst {A B : Term Var} (h : A ↠βᶠ B) (x : Var)
-    {u : Term Var} (hu : LC u) :
-    (Term.subst x u A) ↠βᶠ (Term.subst x u B) := by
-  induction h with
-  | refl => exact Relation.ReflTransGen.refl
-  | tail _ step ih => exact ih.tail (FullBeta.subst step x hu)
-
-/-- Abstraction congruence for β-star. -/
-theorem FullBetaStar.abs {M M' : Term Var} (xs : Finset Var)
-    (h : ∀ x ∉ xs, (M ^ fvar x) ↠βᶠ (M' ^ fvar x)) :
-    (Term.abs M) ↠βᶠ (Term.abs M') :=
-  XiStar.abs (fun _ _ => Beta.regular)
-    (fun _ _ hab y _w hw => Beta.subst hab y hw) xs h
-
-/-- Left-application congruence for β-star. -/
-theorem FullBetaStar.appL {Z M N : Term Var} (hZ : LC Z) (h : M ↠βᶠ N) :
-    (app Z M) ↠βᶠ (app Z N) :=
-  XiStar.appL hZ h
-
-/-- Right-application congruence for β-star. -/
-theorem FullBetaStar.appR {Z M N : Term Var} (hZ : LC Z) (h : M ↠βᶠ N) :
-    (app M Z) ↠βᶠ (app N Z) :=
-  XiStar.appR hZ h
 
 /-! ## Collapse lemmas for η-expansion towers -/
 
@@ -248,9 +223,9 @@ theorem etaExp_betaStar_congr {M M' : Term Var} (hM : LC M)
   induction k with
   | zero => exact h
   | succ k ih =>
-    apply FullBetaStar.abs ( ∅ : Finset Var )
+    apply FullBeta.redex_abs_cong ( ∅ : Finset Var )
     intro x hx
-    convert FullBetaStar.appR ( LC.fvar x ) ih
+    convert FullBeta.redex_app_l_cong ih (LC.fvar x)
     · rw [ open_app_bvar_lc ( etaExp_lc hM k ) ]
     · exact open_app_bvar_lc ( etaExp_lc ( FullBetaStar.lc_right hM h ) k ) x
 
@@ -272,9 +247,9 @@ theorem etaExp_abs_collapse {C : Term Var} (hC : LC (Term.abs C)) (k : ℕ) :
   | zero =>  exact .refl
   | succ k ih =>
     have h_congr : (abs (app (etaExp C.abs k) (bvar 0))) ↠βᶠ (abs (app (abs C) (bvar 0))) := by
-      apply FullBetaStar.abs ∅;
+      apply FullBeta.redex_abs_cong ∅;
       intro x hx;
-      convert FullBetaStar.appR ( LC.fvar x ) ( ih ) using 1;
+      convert FullBeta.redex_app_l_cong ih (LC.fvar x)
       · rw [ open_app_bvar_lc ]
         apply FullBeta.steps_lc_or_rfl at ih
         cases ih with grind
@@ -306,7 +281,7 @@ theorem etaExp_app_collapse {B G : Term Var} (hB : LC B) (hG : LC G) (k : ℕ) :
       | inr h => grind
     · grind
 
-/-! ## Neutral and normal terms (the structure of β-normal forms) -/
+/-! ## NormalNotAbs and normal terms (the structure of β-normal forms) -/
 
 /-- Normal terms (locally closed β-normal forms): a variable head applied to a
 spine of normal terms, possibly under abstractions.  A term in an application's
@@ -318,18 +293,18 @@ inductive Normal : Term Var → Prop where
   | abs (xs : Finset Var) {M : Term Var} :
       (∀ x ∉ xs, Normal (M ^ fvar x)) → Normal (Term.abs M)
 
-/-- A **neutral** term is a normal term that is not an abstraction (a
+/-- A **NormalNotAbs** term is a normal term that is not an abstraction (a
 variable-headed application spine). -/
-def Neutral (M : Term Var) : Prop := Normal M ∧ ∀ C, M ≠ Term.abs C
+def NormalNotAbs (M : Term Var) : Prop := Normal M ∧ ∀ C, M ≠ Term.abs C
 
-theorem Neutral.fvar (x : Var) : Neutral (Term.fvar x : Term Var) :=
+theorem NormalNotAbs.fvar (x : Var) : NormalNotAbs (Term.fvar x : Term Var) :=
   ⟨Normal.fvar x, by rintro C ⟨⟩⟩
 
-theorem Neutral.app {M N : Term Var} (hM : Neutral M) (hN : Normal N) :
-    Neutral (Term.app M N) :=
+theorem NormalNotAbs.app {M N : Term Var} (hM : NormalNotAbs M) (hN : Normal N) :
+    NormalNotAbs (Term.app M N) :=
   ⟨Normal.app hM.1 hM.2 hN, by rintro C ⟨⟩⟩
 
-theorem Neutral.normal {M : Term Var} (h : Neutral M) : Normal M := h.1
+theorem NormalNotAbs.normal {M : Term Var} (h : NormalNotAbs M) : Normal M := h.1
 
 /-
 Normal terms are locally closed.
@@ -341,7 +316,7 @@ theorem Normal.lc {M : Term Var} (h : Normal M) : LC M := by
   | app _ _ _ ihM ihN => exact LC.app ihM ihN
   | abs xs _ ih => exact LC.abs xs _ ih
 
-theorem Neutral.lc {M : Term Var} (h : Neutral M) : LC M := h.1.lc
+theorem NormalNotAbs.lc {M : Term Var} (h : NormalNotAbs M) : LC M := h.1.lc
 
 /-
 Normal terms are β-normal forms.
@@ -439,20 +414,20 @@ theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta 
 /-! ## Normal forms of η-expansion towers -/
 
 /-
-`(B)_1` of a neutral base `B` is normal.
+`(B)_1` of a NormalNotAbs base `B` is normal.
 -/
-theorem Normal.etaExp_one {B : Term Var} (hne : Neutral B) :
+theorem Normal.etaExp_one {B : Term Var} (hne : NormalNotAbs B) :
     Normal (etaExp B 1) := by
   apply Normal.abs ∅;
   intro x hx; exact (by
   convert Normal.app hne.1 hne.2 ( Normal.fvar x ) using 1;
-  exact open_app_bvar_lc ( Neutral.lc hne ) x);
+  exact open_app_bvar_lc ( NormalNotAbs.lc hne ) x);
 
 /-
-A tower of η-expansions over a **neutral** base has a normal (β-nf) form:
+A tower of η-expansions over a **NormalNotAbs** base has a normal (β-nf) form:
 it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
 -/
-theorem etaExp_neutral_normalForm {B : Term Var} (hne : Neutral B) (k : ℕ) :
+theorem etaExp_NormalNotAbs_normalForm {B : Term Var} (hne : NormalNotAbs B) (k : ℕ) :
     ∃ M, (etaExp B k) ↠βᶠ M ∧ Normal M := by
   -- If k = 0, we can take M = B.
   by_cases hk : k = 0;
@@ -468,7 +443,7 @@ theorem etaExp_neutral_normalForm {B : Term Var} (hne : Neutral B) (k : ℕ) :
       · apply FullBeta.redex_abs_cong ∅
         intros x hx
         unfold open' openRec
-        apply Neutral.lc at hne
+        apply NormalNotAbs.lc at hne
         rw [open_lc _ _ B hne, open_lc _ _ (B.etaExp (n+1)) (etaExp_lc hne _)]
         apply etaExp_app_collapse <;> grind
       · grind
@@ -547,17 +522,17 @@ theorem parEta_inv_abs {L A : Term Var}
 /-! ## The reconstruction (core of Lemma 3.6) -/
 
 /-- **Core reconstruction.**  If `A` is normal and `L ⟹η A` (a single parallel
-η-step), then `L` β-reduces to a normal form; moreover if `A` is neutral, `L`
-β-reduces to a tower `(B)_k` over a neutral base `B`. -/
+η-step), then `L` β-reduces to a normal form; moreover if `A` is NormalNotAbs, `L`
+β-reduces to a tower `(B)_k` over a NormalNotAbs base `B`. -/
 theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
     (∃ M, L ↠βᶠ M ∧ Normal M) ∧
-    (Neutral A → ∃ k B, L ↠βᶠ (etaExp B k) ∧ Neutral B) := by
+    (NormalNotAbs A → ∃ k B, L ↠βᶠ (etaExp B k) ∧ NormalNotAbs B) := by
   induction hA with
   | fvar x =>
       intro L hL
       obtain ⟨k, rfl⟩ := parEta_inv_fvar hL
-      exact ⟨etaExp_neutral_normalForm (Neutral.fvar x) k,
-        fun _ => ⟨k, Term.fvar x, Relation.ReflTransGen.refl, Neutral.fvar x⟩⟩
+      exact ⟨etaExp_NormalNotAbs_normalForm (NormalNotAbs.fvar x) k,
+        fun _ => ⟨k, Term.fvar x, Relation.ReflTransGen.refl, NormalNotAbs.fvar x⟩⟩
   | @app M N hM hMne hN ihM ihN =>
       intro L hL
       obtain ⟨j, M', N', rfl, hM', hN'⟩ := parEta_inv_app hL
@@ -566,14 +541,14 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       obtain ⟨k1, B1, hB1red, hB1neu⟩ := (ihM M' hM').2 ⟨hM, hMne⟩
       obtain ⟨Nhat, hNred, hNnorm⟩ := (ihN N' hN').1
       have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
-        (FullBetaStar.appR lcN' hB1red).trans
-          ((FullBetaStar.appL (etaExp_lc (Neutral.lc hB1neu) k1) hNred).trans
-            (etaExp_app_collapse (Neutral.lc hB1neu) (Normal.lc hNnorm) k1))
-      have hBneu : Neutral (app B1 Nhat) := Neutral.app hB1neu hNnorm
+        (FullBeta.redex_app_l_cong hB1red lcN').trans
+          ((FullBeta.redex_app_r_cong  hNred (etaExp_lc (NormalNotAbs.lc hB1neu) k1)).trans
+            (etaExp_app_collapse (NormalNotAbs.lc hB1neu) (Normal.lc hNnorm) k1))
+      have hBneu : NormalNotAbs (app B1 Nhat) := NormalNotAbs.app hB1neu hNnorm
       have hcongr : (etaExp (app M' N') j) ↠βᶠ (etaExp (app B1 Nhat) j) :=
         etaExp_betaStar_congr (LC.app lcM' lcN') hcollapse j
       refine ⟨?_, fun _ => ⟨j, app B1 Nhat, hcongr, hBneu⟩⟩
-      obtain ⟨M2, h2red, h2norm⟩ := etaExp_neutral_normalForm hBneu j
+      obtain ⟨M2, h2red, h2norm⟩ := etaExp_NormalNotAbs_normalForm hBneu j
       exact ⟨M2, hcongr.trans h2red, h2norm⟩
   | @abs xs body hbody ihbody =>
       intro L hL
@@ -594,7 +569,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
               unfold open'
               rw [close_openRec_to_subst] <;> grind
         rw [e1, e2]
-        exact FullBetaStar.subst hC0red x0 (LC.fvar x)
+        exact FullBeta.redex_subst_cong_ls _ _ _ _ hC0red (LC.fvar x)
       have hDnormal : Normal (Term.abs D) := by
         refine Normal.abs (∅ : Finset Var) (fun x _ => ?_)
         have e2 : (D : Term Var) ^ fvar x = Term.subst C0 x0 (fvar x) :=
@@ -603,7 +578,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
               rw [close_openRec_to_subst] <;> grind
         rw [e2]; exact Normal.subst_fvar hC0norm x0 x
       have hDabs : (Term.abs body') ↠βᶠ (Term.abs D) :=
-        FullBetaStar.abs (∅ : Finset Var) (fun x _ => hDred x)
+        FullBeta.redex_abs_cong (∅ : Finset Var) (fun x _ => hDred x)
       have lcAbsBody' : LC (Term.abs body') :=
         LC.abs xs2 body' (fun x hx => (ParEta.regular (hred x hx)).1)
       refine ⟨⟨Term.abs D,
@@ -871,3 +846,8 @@ theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
     have h : Relation.Normalizable FullBeta y := by exists y
     obtain ⟨W, hw, hnormal⟩ := Etastar_hasBetaNF heta h
     exact ⟨W, .trans hbeta hw, hnormal⟩
+
+
+end LambdaCalculus.LocallyNameless.Untyped.Term
+
+end Cslib
