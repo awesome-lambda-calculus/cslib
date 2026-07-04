@@ -61,7 +61,14 @@ theorem from_eta (redex : M ↠ηᶠ M') :  M ↠βηᶠ M' := by grind
 
 theorem normal_fullbeta_iff :
   Relation.Normal FullBetaEta M ↔ Relation.Normal FullBeta M /\ Relation.Normal FullEta M := by
-  sorry
+  constructor
+  · intros hbetaeta
+    constructor <;> intros h <;> apply hbetaeta <;> obtain ⟨t, _⟩ := h <;> exists t <;> grind
+  · intros h
+    obtain ⟨hbeta, heta⟩ := h
+    intros h
+    obtain ⟨t, h⟩ := h
+    cases h <;> grind
 
 end FullBetaEta
 
