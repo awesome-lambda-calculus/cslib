@@ -151,6 +151,7 @@ theorem taka_abs {M0 N0 P : Term Var} (xs : Finset Var)
   · aesop
   · exact exists_Q_abs z (by grind) (by grind) ih.choose_spec.1 ih.choose_spec.2
 
+/-
 /-- **Takahashi's lemma.** η postpones over a single parallel β-step. -/
 theorem eta_par_local (M : Term Var) : TakaProp M := by
   have key : ∀ n (M : Term Var), size M = n → TakaProp M := by
@@ -175,28 +176,8 @@ theorem eta_par_local (M : Term Var) : TakaProp M := by
 theorem localPostpone_parBeta_fullEta :
     LocalPostpone (Parallel (Var := Var)) (FullEta (Var := Var)) :=
   fun _ _ _ he hp => eta_par_local _ _ _ he hp
-
-
-theorem betaEtaStar_le_parOrEtaStar {M N: Term Var}
-  (h : M ↠βηᶠ N) : Relation.ReflTransGen (fun a b => a ⭢ₚ b ∨ a ⭢ηᶠ b) M N := by
-  induction h with
-  | refl => grind
-  | tail h h' ih =>
-    refine .trans ih ?_
-    cases h' with
-    | inl h =>  apply step_to_para at h
-                grind
-    | inr h => grind
-/-
-**η-postponement.** If `M` reduces to `N` under combined βη-reduction, then
-there is an intermediate term `L` with `M ⟶β* L` and `L ⟶η* N`: every η-step can
-be postponed past the β-steps.
 -/
-theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
-    ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
-  obtain ⟨L, hL₁, hL₂⟩ := postpone localPostpone_parBeta_fullEta (betaEtaStar_le_parOrEtaStar h)
-  rw [parachain_iff_redex] at hL₁
-  exact ⟨ L, hL₁, hL₂ ⟩
+
 
 
 
@@ -377,18 +358,6 @@ theorem strongLocal_fullBeta_fullEta :
   fun _ _ _ he hbeta => eta_beta_local _ _ _ he hbeta
 
 /-
-Weak commutation of full β and full η (derived from η-postponement via the
-parallel-β local lemma).
--/
-theorem weakCommute_fullBeta_fullEta :
-    WeakCommute (FullBeta (Var := Var)) (FullEta (Var := Var)) := by
-  intro p q r hpq hqr
-  obtain ⟨ s, hs1, hs2 ⟩ := postpone localPostpone_parBeta_fullEta (by
-    convert hpq.mono _ |> Relation.ReflTransGen.trans <| hqr.mono _
-    · exact fun a b hab => Or.inr hab
-    · exact fun a b hab => Or.inl <| step_to_para hab)
-  rw [parachain_iff_redex] at hs1
-  exact ⟨s, hs1, hs2⟩
 
 /-! ## Main theorem -/
 
@@ -397,6 +366,7 @@ theorem eta_beta_postpone {t t' t'' : Term Var}
     ∃ y, Relation.TransGen FullBeta t y ∧ y ↠ηᶠ t'' :=
   star_over_plus weakCommute_fullBeta_fullEta
     strongLocal_fullBeta_fullEta htt' ht''
+-/
 
 
 /-!
