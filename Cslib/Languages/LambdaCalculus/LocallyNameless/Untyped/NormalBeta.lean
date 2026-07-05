@@ -96,7 +96,7 @@ theorem Normal.betaNF {M : Term Var} (h : Normal M) : Relation.Normal FullBeta M
 Normality is preserved by renaming a free variable to another.
 -/
 theorem Normal.subst_fvar {M : Term Var} (h : Normal M) (x y : Var) :
-    Normal (M [x:=(Term.fvar y)]) := by
+    Normal (M[x:=Term.fvar y]) := by
   revert h
   intro hM
   induction hM with
