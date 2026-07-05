@@ -109,14 +109,14 @@ lemma redex_subst_cong_lc (s s' t : Term Var) (x : Var) (step : s ⭢βᶠ s') (
   | _ => grind
 
 lemma redex_subst_cong_ls (s s' t : Term Var) (x : Var) (step : s ↠βᶠ s') (h_lc : LC t) :
-    s [ x := t ] ↠βᶠ s' [ x := t ] := by
+    s[ x := t ] ↠βᶠ s'[ x := t ] := by
   induction step with
   | refl => grind
   | tail _ _ _ => grind [redex_subst_cong_lc]
 
 
 lemma steps_subst_cong_l (s s' t : Term Var) (x : Var) (step : Relation.TransGen FullBeta s s')
-  (h_lc : LC t) :Relation.TransGen FullBeta (s [ x := t ]) (s' [ x := t ]) := by
+  (h_lc : LC t) :Relation.TransGen FullBeta (s[ x := t ]) (s'[ x := t ]) := by
   induction step with
   | single _ => apply Relation.TransGen.single
                 grind [redex_subst_cong_lc]
