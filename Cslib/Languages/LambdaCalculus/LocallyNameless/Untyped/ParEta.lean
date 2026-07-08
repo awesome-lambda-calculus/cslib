@@ -170,9 +170,7 @@ theorem etaExp_fullEtaStar [DecidableEq Var] [HasFresh Var]
 /-- Layers of η-expansion compose. -/
 theorem etaExp_add (M : Term Var) (a b : ℕ) :
     etaExp M (a + b) = etaExp (etaExp M b) a := by
-  induction a with
-  | zero => simp
-  | succ a ih => simp [Nat.succ_add, ih]
+  induction a with grind
 
 /-! ## Collapse lemmas for η-expansion towers -/
 
@@ -331,9 +329,7 @@ theorem parEta_inv_app {L A B : Term Var}
   rintro ( h | h | h | h )
   · exact ⟨ 0, _, _, rfl, h, by assumption ⟩
   · rename_i M hM
-    obtain ⟨ k, A', B', rfl, hA', hB' ⟩ := ih _ ( by
-      simp +decide [ ← n, Term.size ]
-      grind +splitImp ) rfl hM
+    obtain ⟨ k, A', B', rfl, hA', hB' ⟩ := ih _ (by grind) rfl hM
     exact ⟨ k + 1, A', B', rfl, hA', hB' ⟩
 
 /-
@@ -349,9 +345,7 @@ theorem parEta_inv_abs {L A : Term Var}
   rintro ( h | h | h | h )
   · exact ⟨ 0, _, h, rfl, by assumption ⟩
   · rename_i M hM
-    obtain ⟨ k, A', xs, rfl, hA' ⟩ := ih _ ( by
-      simp +decide [ ← n, Term.size ]
-      linarith ) rfl hM
+    obtain ⟨ k, A', xs, rfl, hA' ⟩ := ih _ (by grind) rfl hM
     exact ⟨ k + 1, A', xs, rfl, hA' ⟩
 
 variable [DecidableEq Var] [HasFresh Var]
@@ -429,7 +423,7 @@ theorem ParEta.subst_par {A A' B B' : Term Var} (z : Var)
   induction hA generalizing B B' with
   | fvar x => unfold Term.subst
               split_ifs <;> [ exact hB; exact ParEta.fvar _ ]
-  | app _ _ _ _ => exact ParEta.app ( by aesop ) ( by aesop )
+  | app _ _ _ _ => exact ParEta.app ( by grind ) ( by grind )
   | abs xs h ih => exact ParEta.abs ( xs ∪ { z } ) fun x hx => by
                       grind +suggestions
   | eta hM hMM' ih => exact ParEta.eta ( Term.subst_lc hM hB.regular.1 ) ( ih hB )
@@ -454,13 +448,9 @@ theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
     (hbody : ∀ x ∉ xs, Parallel (C ^ fvar x) (C' ^ fvar x)) (hZ : Parallel Z Z')
     (j : ℕ) :
     Parallel (Term.app (etaExp (Term.abs C) j) Z) (C' ^ Z') := by
-  revert hbody hZ
   induction j generalizing C C' Z Z' xs with
-  | zero =>
-    intro hbody hZ
-    apply Parallel.beta xs hbody hZ
+  | zero => apply Parallel.beta xs hbody hZ
   | succ j ih =>
-    intro hbody hZ
     have hCabs : LC (Term.abs C) := by
       have hLC : ∀ x ∉ xs, LC (C ^ fvar x) := by grind
       apply LC.abs
@@ -479,22 +469,19 @@ theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
 -/
 theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta := by
   intros M N P hη hβ
-  revert hη
   induction hβ generalizing M with
   | fvar x =>  grind +suggestions
   | app _ _ ih1 ih2 =>
-    intro hM
-    obtain ⟨ k, M1, M2, rfl, hM1, hM2 ⟩ := parEta_inv_app hM
+    obtain ⟨ k, M1, M2, rfl, hM1, hM2 ⟩ := parEta_inv_app hη
     obtain ⟨ P1, hP1, hP1' ⟩ := ih1 hM1
     obtain ⟨ P2, hP2, hP2' ⟩ := ih2 hM2
     use etaExp (app P1 P2) k
     exact ⟨parBeta_etaExp_congr (Parallel.app hP1 hP2) k, parEta_etaExp (ParEta.app hP1' hP2') k⟩
   | abs xs hβ ih =>
     rename_i xs M M'
-    intro hM
-    obtain ⟨ k, M0, xs2, rfl, hM0 ⟩ := parEta_inv_abs hM
+    obtain ⟨ k, M0, xs2, rfl, hM0 ⟩ := parEta_inv_abs hη
     obtain ⟨x0, hx0⟩ := fresh_exists <| free_union [fv] Var
-    obtain ⟨ Q0, hQ0 ⟩ := ih x0 ( by aesop ) ( hM0 x0 ( by aesop ) )
+    obtain ⟨ Q0, hQ0 ⟩ := ih x0 ( by grind ) ( hM0 x0 ( by grind ) )
     -- Set `M0' = closeRec 0 x0 Q0`.
     set M0' : Term Var := closeRec 0 x0 Q0
     -- Prove the cofinite families for all `x` (using `LC Q0 = (ParBeta.regular ‹ParBeta (M0^x0) Q0›).2`, `subst_intro` with `x0∉fv M0`, `x0∉fv M'`, and `open_close_lc`):
@@ -513,15 +500,12 @@ theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta :
       · rw [ h_subst, h_subst' ]
         apply para_subst <;> grind
       · rw [h_subst', h_subst'']; exact ParEta.subst_par x0 hQ0.2 (ParEta.fvar x)
-    refine ⟨ etaExp M0'.abs k, ?_, ?_ ⟩
-    · apply parBeta_etaExp_congr
-      apply Parallel.abs
+    refine ⟨ etaExp M0'.abs k, parBeta_etaExp_congr ?_ _, parEta_etaExp ?_ _⟩
+    · apply Parallel.abs
       exact fun x hx => h_cofinite x hx |>.1
-    · apply parEta_etaExp
-      apply ParEta.abs
+    · apply ParEta.abs
       exact fun x hx => h_cofinite x hx |>.2
   | beta xs h₁ h₂ h₃ h₄ =>
-    intro hη
     rename_i xs M' N' M'' N''
     obtain ⟨ k, M₁, M₂, rfl, hM₁, hM₂ ⟩ := parEta_inv_app hη
     obtain ⟨ j, M₁b, xs', rfl, hM₁b ⟩ := parEta_inv_abs hM₁
@@ -545,11 +529,8 @@ theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta :
       · rw [ Term.subst_intro x0 _ _ (by grind)]
         rw [subst_open] <;> grind
     obtain ⟨ P', hP', hP'' ⟩ := h₄ hM₂
-    refine ⟨ etaExp ( M₁b' ^ P' ) k, ?_, parEta_etaExp ?_ k ⟩
-    · convert parBeta_etaExp_congr ( parBeta_etaExp_abs_app ( xs ∪ xs' ) hM₁b'_family hP' j ) k
-    · apply ParEta.open_par
-      · exact hM₁b'_family'
-      · exact hP''
+    refine ⟨etaExp (M₁b' ^ P') k, ?_, parEta_etaExp (ParEta.open_par _ hM₁b'_family' hP'') k⟩
+    convert parBeta_etaExp_congr ( parBeta_etaExp_abs_app ( xs ∪ xs' ) hM₁b'_family hP' j ) k
 
 
 /-!
