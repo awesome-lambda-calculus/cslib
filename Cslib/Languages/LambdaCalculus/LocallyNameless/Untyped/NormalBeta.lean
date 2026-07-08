@@ -97,15 +97,13 @@ Normality is preserved by renaming a free variable to another.
 -/
 theorem Normal.subst_fvar {M : Term Var} (h : Normal M) (x y : Var) :
     Normal (M[x:=Term.fvar y]) := by
-  revert h
-  intro hM
-  induction hM with
+  induction h with
   | fvar z => rw [Term.subst_fvar]
               split <;> constructor
   | abs xs hM ih =>
     apply Normal.abs ( xs ∪ { x } )
     intro z hz
-    convert ih z ( by aesop )
+    convert ih z ( by grind )
     rw  [Term.subst_open_var] <;> grind
   | app _ h₁ h₂ h₃ h₄ =>
     convert Normal.app h₃ _ h₄
@@ -161,8 +159,7 @@ theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta 
     · apply hM
       intro hu
       obtain ⟨ _, hu⟩ := hu
-      apply h
-      refine ⟨ _, Xi.appL (by assumption) hu⟩
+      refine h ⟨ _, Xi.appL (by assumption) hu⟩
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
