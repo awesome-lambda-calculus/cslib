@@ -58,12 +58,14 @@ lemma steps_multiApp_l (steps : M ↠βᶠ M') (lc_Ns : ∀ N ∈ Ns, LC N) :
 
 /-- Congruence lemma for single reduction of one of the arguments of a multi-application -/
 @[scoped grind ←]
-lemma step_multiApp_r (steps : Ns ⭢lβᶠ Ns') (lc_M : LC M) : Ns.foldl app M ⭢βᶠ Ns'.foldl app M := by
+lemma step_multiApp_r (steps : Ns ⭢lβᶠ Ns') (lc_M : LC M) :
+    Ns.foldl app M ⭢βᶠ Ns'.foldl app M := by
   induction steps generalizing M <;> grind
 
 /-- Congruence lemma for multiple reduction of one of the arguments of a multi-application -/
 lemma steps_multiApp_r (steps : Ns ↠lβᶠ Ns') (lc_M : LC M) :
-  Ns.foldl app M ↠βᶠ Ns'.foldl app M := by induction steps <;> grind
+  Ns.foldl app M ↠βᶠ Ns'.foldl app M := by
+  induction steps <;> grind
 
 lemma listFullBeta_cons_r (h : Ns ⭢lβᶠ Ns') (h_lc : ∀ M ∈ l, LC M) : (l ++ Ns) ⭢lβᶠ (l ++ Ns') := by
   induction l using List.reverseRecOn generalizing Ns Ns' with grind
