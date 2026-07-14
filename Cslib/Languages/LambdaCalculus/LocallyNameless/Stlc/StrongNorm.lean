@@ -72,7 +72,12 @@ lemma semanticMap_saturated (τ : Ty Base) : @Saturated Var (semanticMap τ) := 
     · grind [sn_app_left (Var := Var) (N := fvar <| fresh {})]
     · grind
     · intro M N P _ _ _ s _
-      grind [ih₂.multiApp M N (P ++ [s])]
+      grind only [semanticMap,
+                  = List.foldl_append,
+                  = List.foldl_cons,
+                  usr Set.mem_setOf_eq,
+                  = List.foldl_nil,
+                  ih₂.multiApp M N (P ++ [s])]
 
 /-- The `entailsContext` predicate ensures that each variable in the context
     is mapped to a term in the corresponding semantic map. -/
