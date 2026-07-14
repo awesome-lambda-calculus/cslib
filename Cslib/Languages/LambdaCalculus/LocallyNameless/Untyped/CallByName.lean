@@ -55,6 +55,12 @@ lemma CBN.steps_app_l_cong (step : M ↠ₙ M') (lc_N : LC N) : Term.app M N ↠
   · rfl
   · grind [CBN.app]
 
+/-- The source of a Call-by-Name step is never an abstraction. -/
+lemma cbn_not_isAbs (h : M ⭢ₙ N) : ¬IsAbs M := by
+  intro ha
+  cases ha
+  trivial
+
 variable [HasFresh Var] [DecidableEq Var]
 
 /-- The right side of a Call-by-Name step is locally closed. -/
