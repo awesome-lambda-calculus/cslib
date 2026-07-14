@@ -94,9 +94,7 @@ lemma invert_abs_multiApp_st {Ps} {M N Q : Term Var}
             | @appR _ _ M' _ h => cases h with
               | base h => cases h
               | @abs _ M' xs h => left
-                                  exists M'
-                                  apply Xi.abs at h
-                                  grind
+                                  exact ⟨M', Xi.abs xs h, by grind⟩
   | append_singleton Ps P ih =>
     rw [List.foldl_concat] at h_red
     cases h_red with
