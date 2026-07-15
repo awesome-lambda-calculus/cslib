@@ -134,8 +134,11 @@ theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : BetaNormal N) : M ↠ℓ N :
 
 /-- The leftmost reduction theorem: if a term β-reduces to a normal form, then leftmost
     reduction reaches it. -/
-theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : BetaNormal N) : M ↠ℓ N :=
-  of_standard (.standardization lc h) hn
+theorem Leftmost.normalization (h : M ↠βᶠ N) (hn : BetaNormal N) : M ↠ℓ N := by
+  cases (FullBeta.steps_lc_or_rfl h) with
+  | inl h_lc => exact of_standard (.standardization h_lc.1 h) hn
+  | inr h => grind
+
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
