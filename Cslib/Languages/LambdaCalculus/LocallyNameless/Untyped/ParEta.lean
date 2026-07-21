@@ -13,6 +13,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaCon
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Takahashi
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
+public import Cslib.Foundations.Relation.Confluence
 
 /-!
 # Parallel η-reduction and Takahashi's Lemma 3.7
@@ -795,6 +796,12 @@ theorem parEta_hasBetaNF {P Q : Term Var}
   exact ⟨M, .trans hPP' hP'M, hMnorm⟩
   grind
 
+theorem Etastar_hasBetaNF {P Q : Term Var}
+    (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
+  induction h with
+  | refl => grind
+  | tail _ h ih => exact ih (parEta_hasBetaNF (ParEta.fromFullEta h) hQ)
+
 theorem weakCommute_fullBeta_fullEta :
   Postpone (Relation.ReflTransGen (FullBeta (Var := Var))) (Relation.ReflTransGen FullEta) := by
     intros _ _ _ heta hbeta
@@ -802,6 +809,17 @@ theorem weakCommute_fullBeta_fullEta :
     rw [<- paraEtachain_iff_redex] at heta
     have := postpone_ab parEta_parBeta_postpone heta hbeta
     grind [parachain_iff_redex, paraEtachain_iff_redex]
+
+theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
+    ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
+  induction h with
+  | refl => exists M
+  | tail _ h ih =>
+      obtain ⟨L, hbeta, heta⟩ := ih
+      cases h with
+      | inl h =>  obtain ⟨P, hpbeta, hpeta⟩ := weakCommute_fullBeta_fullEta heta (.single h)
+                  exact ⟨P, .trans hbeta hpbeta, hpeta⟩
+      | inr _ => grind
 
 theorem eta_beta_postpone :
     Postpone (Relation.TransGen (FullBeta (Var := Var))) (Relation.ReflTransGen FullEta) := by
@@ -824,9 +842,32 @@ theorem parEta_betaNF {P Q : Term Var} (h : ParEta P Q) (hP : Relation.Normal Fu
   apply hP
   exact ⟨z, hz⟩
 
+theorem Etastar_normal {P Q : Term Var}
+  (h : P ↠ηᶠ Q) (hQ : Relation.Normal FullBeta P) : Relation.Normal FullBeta Q := by
+  induction h using Relation.ReflTransGen.head_induction_on with
+  | refl => grind
+  | head h' h ih => exact ih (parEta_betaNF (ParEta.fromFullEta h') hQ)
+
+
 /-- **A term has a βη-normal form ⇔ it has a β-normal form.** -/
 theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
   Relation.Normalizable FullBeta t ↔ Relation.Normalizable FullBetaEta t := by
   constructor
-  · sorry
-  · sorry
+  · intros hbeta
+    obtain ⟨y, hy, hbeta⟩ := hbeta
+    obtain ⟨z, hz, hnormal⟩:= Relation.SN.to_WN (FullEta.wellFoundedFullEta.apply y)
+    exists z
+    constructor
+    · exact Relation.ReflTransGen.trans (FullBetaEta.from_beta hy) (FullBetaEta.from_eta hz)
+    · have := Etastar_normal hz hbeta
+      intros h
+      obtain ⟨_, h⟩ := h
+      cases h <;> grind
+  · intros hbetaeta
+    obtain ⟨y, hy, hbetaetanormal⟩ := hbetaeta
+    obtain ⟨L, hbeta, heta⟩ := eta_postponement hy
+    rw [FullBetaEta.normal_fullbeta_iff] at hbetaetanormal
+    obtain ⟨_, _⟩ := hbetaetanormal
+    have h : Relation.Normalizable FullBeta y := by exists y
+    obtain ⟨W, hw, hnormal⟩ := Etastar_hasBetaNF heta h
+    exact ⟨W, .trans hbeta hw, hnormal⟩
