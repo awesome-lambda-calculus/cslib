@@ -68,7 +68,7 @@ theorem WeakPostpone_fullBeta_fullEta :
     | abs xs h ih => cases hxy with
       | base hxy => cases hxy with | eta hxy =>
         rename_i M N
-        have hmn : M.abs  ⭢βᶠ N.abs := Xi.abs xs h
+        have hmn : M.abs ⭢βᶠ N.abs := Xi.abs xs h
         have n_lc := FullBeta.step_lc_r hmn
         refine ⟨_, FullBeta.steps_abs_cong xs ?_, .single (.base (.eta n_lc))⟩
         intros x hx
