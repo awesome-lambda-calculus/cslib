@@ -134,10 +134,9 @@ Substitutivity of parallel η-reduction.
 -/
 theorem ParEta.subst_par [DecidableEq Var] [HasFresh Var] {A A' B B' : Term Var} (z : Var)
     (hA : ParEta A A') (hB : ParEta B B') :
-    ParEta (Term.subst A z B) (Term.subst A' z B') := by
+    ParEta (A[z := B]) (A'[z:= B']) := by
   induction hA generalizing B B' with
-  | fvar x => unfold Term.subst
-              split_ifs <;> [exact hB; exact ParEta.fvar _]
+  | fvar x => grind
   | app _ _ _ _ => exact ParEta.app (by grind) (by grind)
   | abs xs h ih => exact ParEta.abs (xs ∪ { z }) fun x hx => by
                       grind
@@ -152,8 +151,8 @@ theorem ParEta.open_par [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} 
     ParEta (M ^ N) (M' ^ N') := by
   have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
   convert ParEta.subst_par z ( hbody z (by grind) ) hN
-  · rw [ Term.subst_intro z] <;> grind
-  · rw [ Term.subst_intro z] <;> grind
+  · rw [ Term.subst_intro z]; grind
+  · rw [ Term.subst_intro z]; grind
 
 
 
@@ -419,9 +418,9 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       set D := closeRec 0 x0 C0 with hDdef
       have hDred : ∀ x : Var, (body' ^ fvar x) ↠βᶠ (D ^ fvar x) := by
         intro x
-        have e1 : body' ^ fvar x = Term.subst (body' ^ fvar x0) x0 (fvar x) :=
-          by rw [Term.subst_intro x0] <;> grind
-        have e2 : (D : Term Var) ^ fvar x = Term.subst C0 x0 (fvar x) :=
+        have e1 : body' ^ fvar x = (body' ^ fvar x0)[x0 := fvar x] :=
+          by rw [Term.subst_intro x0]; grind
+        have e2 : (D : Term Var) ^ fvar x = C0[x0 := fvar x] :=
           by  rw [hDdef]
               unfold open'
               rw [close_openRec_to_subst] <;> grind
@@ -429,7 +428,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
         exact FullBeta.redex_subst_cong_ls _ _ _ _ hC0red (LC.fvar x)
       have hDnormal : Normal (Term.abs D) := by
         refine Normal.abs (∅ : Finset Var) (fun x _ => ?_)
-        have e2 : (D : Term Var) ^ fvar x = Term.subst C0 x0 (fvar x) :=
+        have e2 : (D : Term Var) ^ fvar x = C0[x0 := fvar x] :=
           by  rw [hDdef]
               unfold open'
               rw [close_openRec_to_subst] <;> grind
@@ -493,13 +492,13 @@ theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta :
     -- Prove the cofinite families for all `x` (using `LC Q0 = (ParBeta.regular ‹ParBeta (M0^x0) Q0›).2`, `subst_intro` with `x0∉fv M0`, `x0∉fv M'`, and `open_close_lc`):
     have h_cofinite : ∀ x ∉ xs ∪ xs2, Parallel (M0 ^ fvar x) (M0' ^ fvar x) ∧ ParEta (M0' ^ fvar x) (M' ^ fvar x) := by
       intro x hx
-      have h_subst : M0 ^ fvar x = Term.subst (M0 ^ fvar x0) x0 (fvar x)  := by
+      have h_subst : M0 ^ fvar x = (M0 ^ fvar x0)[x0 := fvar x] := by
         apply Term.subst_intro
         grind
-      have h_subst' : M0' ^ fvar x = Term.subst Q0 x0 (fvar x) := by
+      have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by
         unfold open'
         rw [close_openRec_to_subst] <;> grind
-      have h_subst'' : M' ^ fvar x = Term.subst (M' ^ fvar x0) x0 (fvar x)  := by
+      have h_subst'' : M' ^ fvar x = (M' ^ fvar x0)[x0:= fvar x]  := by
         apply Term.subst_intro
         grind
       constructor
@@ -533,7 +532,6 @@ theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta :
       · unfold open'
         rw [close_openRec_to_subst] <;> grind
       · rw [ Term.subst_intro x0 _ _ (by grind)]
-        rw [subst_open] <;> grind
     obtain ⟨ P', hP', hP'' ⟩ := h₄ hM₂
     refine ⟨etaExp (M₁b' ^ P') k, ?_, parEta_etaExp (ParEta.open_par _ hM₁b'_family' hP'') k⟩
     convert parBeta_etaExp_congr ( parBeta_etaExp_abs_app ( xs ∪ xs' ) hM₁b'_family hP' j ) k
