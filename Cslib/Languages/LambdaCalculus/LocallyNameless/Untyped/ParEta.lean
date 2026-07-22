@@ -129,6 +129,34 @@ theorem paraEtachain_iff_redex [DecidableEq Var] [HasFresh Var]
   case redex_chain redex chain => exact Relation.ReflTransGen.tail chain (ParEta.fromFullEta redex)
   case chain_redex para redex => exact Relation.ReflTransGen.trans redex (ParEta.toFullEtaStar para)
 
+/-
+Substitutivity of parallel η-reduction.
+-/
+theorem ParEta.subst_par [DecidableEq Var] [HasFresh Var] {A A' B B' : Term Var} (z : Var)
+    (hA : ParEta A A') (hB : ParEta B B') :
+    ParEta (Term.subst A z B) (Term.subst A' z B') := by
+  induction hA generalizing B B' with
+  | fvar x => unfold Term.subst
+              split_ifs <;> [exact hB; exact ParEta.fvar _]
+  | app _ _ _ _ => exact ParEta.app (by grind) (by grind)
+  | abs xs h ih => exact ParEta.abs (xs ∪ { z }) fun x hx => by
+                      grind +suggestions
+  | eta hM hMM' ih => exact ParEta.eta (Term.subst_lc hM hB.step_lc_l) (ih hB)
+
+/-
+Opening congruence for parallel η-reduction.
+-/
+theorem ParEta.open_par [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} (xs : Finset Var)
+    (hbody : ∀ x ∉ xs, ParEta (M ^ Term.fvar x) (M' ^ Term.fvar x))
+    (hN : ParEta N N') :
+    ParEta (M ^ N) (M' ^ N') := by
+  have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
+  convert ParEta.subst_par z ( hbody z (by grind) ) hN
+  · rw [ Term.subst_intro z] <;> grind
+  · rw [ Term.subst_intro z] <;> grind
+
+
+
 /-!
 # `k`-fold η-expansion and the structure of η-expansions of β-normal forms
 
@@ -419,31 +447,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       rintro ⟨-, hc⟩
       exact absurd rfl (hc body)
 
-/-
-Substitutivity of parallel η-reduction.
--/
-theorem ParEta.subst_par {A A' B B' : Term Var} (z : Var)
-    (hA : ParEta A A') (hB : ParEta B B') :
-    ParEta (Term.subst A z B) (Term.subst A' z B') := by
-  induction hA generalizing B B' with
-  | fvar x => unfold Term.subst
-              split_ifs <;> [ exact hB; exact ParEta.fvar _ ]
-  | app _ _ _ _ => exact ParEta.app ( by grind ) ( by grind )
-  | abs xs h ih => exact ParEta.abs ( xs ∪ { z } ) fun x hx => by
-                      grind +suggestions
-  | eta hM hMM' ih => exact ParEta.eta ( Term.subst_lc hM hB.step_lc_l ) ( ih hB )
 
-/-
-Opening congruence for parallel η-reduction.
--/
-theorem ParEta.open_par {M M' N N' : Term Var} (xs : Finset Var)
-    (hbody : ∀ x ∉ xs, ParEta (M ^ Term.fvar x) (M' ^ Term.fvar x))
-    (hN : ParEta N N') :
-    ParEta (M ^ N) (M' ^ N') := by
-  have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
-  convert ParEta.subst_par z ( hbody z (by grind) ) hN
-  · rw [ Term.subst_intro z] <;> grind
-  · rw [ Term.subst_intro z] <;> grind
 
 /-
 Applying a `j`-fold η-expansion of an abstraction to an argument parallel
