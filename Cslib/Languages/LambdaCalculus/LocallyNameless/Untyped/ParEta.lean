@@ -79,18 +79,24 @@ theorem ParEta.fromFullEta {M N : Term Var} (h : M ⭢ηᶠ N) : ParEta M N := b
   | appR _ _ _ => apply ParEta.app <;> grind
   | abs xs _ ih => apply ParEta.abs xs ih
 
-/-- Parallel η-reduction relates locally closed terms. -/
 @[scoped grind ->]
-theorem ParEta.regular [DecidableEq Var] [HasFresh Var]
-  {M N : Term Var} (h : ParEta M N) : LC M ∧ LC N := by
+theorem ParEta.step_lc_r {M N : Term Var} (h : ParEta M N) : LC N := by
   induction h with
-  | fvar x => exact ⟨LC.fvar x, LC.fvar x⟩
-  | app _ _ ihM ihN => exact ⟨LC.app ihM.1 ihN.1, LC.app ihM.2 ihN.2⟩
-  | abs xs _ ih =>
-      exact ⟨LC.abs xs _ fun x hx => (ih x hx).1, LC.abs xs _ fun x hx => (ih x hx).2⟩
+  | fvar x => exact LC.fvar x
+  | app _ _ ihM ihN => exact LC.app ihM ihN
+  | abs xs _ ih => exact LC.abs xs _ fun x hx => (ih x hx)
+  | @eta M M' hM _ ih => exact ih
+
+@[scoped grind ->]
+theorem ParEta.step_lc_l [HasFresh Var]
+  {M N : Term Var} (h : ParEta M N) : LC M := by
+  induction h with
+  | fvar x => exact LC.fvar x
+  | app _ _ ihM ihN => exact LC.app ihM ihN
+  | abs xs _ ih => exact LC.abs xs _ fun x hx => (ih x hx)
   | @eta M M' hM _ ih =>
-      refine ⟨LC.abs (∅ : Finset Var) _ fun x _ => ?_, ih.2⟩
-      apply LC.app <;> grind
+      refine LC.abs (∅ : Finset Var) _ fun x _ => LC.app ?_ ?_
+      all_goals grind
 
 /-- A single parallel η-step is a sequence of full η-steps. -/
 theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
@@ -98,17 +104,16 @@ theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
   induction h with
   | fvar x => exact Relation.ReflTransGen.refl
   | @app M M' N N' hM hN ihM ihN =>
-      exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEta.regular hN).1))
-                                        (FullEta.redex_app_r_cong ihN ( (ParEta.regular hM).2))
+      exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEta.step_lc_l hN)))
+                                        (FullEta.redex_app_r_cong ihN ( (ParEta.step_lc_r hM)))
   | abs xs h ih =>  apply FullEta.redex_abs_cong xs ih
                     have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
                     specialize h x (by grind)
-                    apply ParEta.regular at h
-                    obtain ⟨hM, hM'⟩ := h
-                    apply open_abs_lc hM
+                    apply ParEta.step_lc_l at h
+                    apply open_abs_lc h
   | @eta M M' hM hMM' ih =>
       -- `λz.(M z) →η* λz.(M' z) →η M'`
-  have hM' : LC M' := (ParEta.regular hMM').2
+  have hM' : LC M' := (ParEta.step_lc_r hMM')
   have step1 : (Term.abs (Term.app M (Term.bvar 0))) ↠ηᶠ (Term.app M' (Term.bvar 0)).abs := by
     apply FullEta.redex_abs_cong (∅ : Finset Var)
     · intros x hx
@@ -289,7 +294,7 @@ theorem parEta_etaExp [DecidableEq Var] [HasFresh Var]
     ParEta (etaExp Y k) Z := by
   induction k with
   | zero => exact h
-  | succ k ih => exact ParEta.eta (etaExp_lc (ParEta.regular h).1 k) ih
+  | succ k ih => exact ParEta.eta (etaExp_lc (ParEta.step_lc_l h) k) ih
 
 /-- Parallel β-reduction lifts through η-expansion towers. -/
 theorem parBeta_etaExp_congr [DecidableEq Var] [HasFresh Var]
@@ -367,8 +372,8 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
   | @app M N hM hMne hN ihM ihN =>
       intro L hL
       obtain ⟨j, M', N', rfl, hM', hN'⟩ := parEta_inv_app hL
-      have lcM' : LC M' := (ParEta.regular hM').1
-      have lcN' : LC N' := (ParEta.regular hN').1
+      have lcM' : LC M' := (ParEta.step_lc_l hM')
+      have lcN' : LC N' := (ParEta.step_lc_l hN')
       obtain ⟨k1, B1, hB1red, hB1neu⟩ := (ihM M' hM').2 ⟨hM, hMne⟩
       obtain ⟨Nhat, hNred, hNnorm⟩ := (ihN N' hN').1
       have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
@@ -407,7 +412,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       have hDabs : (Term.abs body') ↠βᶠ (Term.abs D) :=
         FullBeta.redex_abs_cong (∅ : Finset Var) (fun x _ => hDred x)
       have lcAbsBody' : LC (Term.abs body') :=
-        LC.abs xs2 body' (fun x hx => (ParEta.regular (hred x hx)).1)
+        LC.abs xs2 body' (fun x hx => (ParEta.step_lc_l (hred x hx)))
       refine ⟨⟨Term.abs D,
         (etaExp_betaStar_congr lcAbsBody' hDabs j).trans
           (etaExp_abs_collapse (Normal.lc hDnormal) j), hDnormal⟩, ?_⟩
@@ -426,7 +431,7 @@ theorem ParEta.subst_par {A A' B B' : Term Var} (z : Var)
   | app _ _ _ _ => exact ParEta.app ( by grind ) ( by grind )
   | abs xs h ih => exact ParEta.abs ( xs ∪ { z } ) fun x hx => by
                       grind +suggestions
-  | eta hM hMM' ih => exact ParEta.eta ( Term.subst_lc hM hB.regular.1 ) ( ih hB )
+  | eta hM hMM' ih => exact ParEta.eta ( Term.subst_lc hM hB.step_lc_l ) ( ih hB )
 
 /-
 Opening congruence for parallel η-reduction.
@@ -567,7 +572,7 @@ theorem parEta_hasBetaNF {P Q : Term Var}
                           cases hQN with
                           | inl _ => grind
                           | inr hQN =>  subst Q
-                                        apply ParEta.regular at h
+                                        apply ParEta.step_lc_r at h
                                         grind
   rw [<- parachain_iff_redex] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
