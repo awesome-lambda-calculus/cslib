@@ -140,7 +140,7 @@ theorem ParEta.subst_par [DecidableEq Var] [HasFresh Var] {A A' B B' : Term Var}
               split_ifs <;> [exact hB; exact ParEta.fvar _]
   | app _ _ _ _ => exact ParEta.app (by grind) (by grind)
   | abs xs h ih => exact ParEta.abs (xs ∪ { z }) fun x hx => by
-                      grind +suggestions
+                      grind
   | eta hM hMM' ih => exact ParEta.eta (Term.subst_lc hM hB.step_lc_l) (ih hB)
 
 /-
@@ -304,7 +304,6 @@ theorem etaExp_NormalNotAbs_normalForm [DecidableEq Var] [HasFresh Var]
     induction k with unfold etaExp
     | zero => exact ⟨Relation.ReflTransGen.refl, Normal.etaExp_one hne⟩
     | succ n h =>
-      obtain ⟨ h1, h2 ⟩ := h
       constructor
       · apply FullBeta.redex_abs_cong ∅
         intros x hx
@@ -340,25 +339,24 @@ comes from a `k`-fold η-expansion of that variable.
 -/
 theorem parEta_inv_fvar {L : Term Var} {x : Var}
     (h : ParEta L (fvar x)) : ∃ k, L = etaExp (fvar x) k := by
-  generalize hy : fvar x = y
-  rw [hy] at h
+  generalize hm : fvar x = M
+  rw [hm] at h
   induction h with
   | fvar x => exists 0
   | app _ _ _ _ => grind
   | abs xs _ _ => grind
-  | eta _ _ ih => specialize ih hy
+  | eta _ _ ih => specialize ih hm
                   obtain ⟨ k, rfl ⟩ := ih
                   exact ⟨ k + 1, rfl ⟩
 
 /-
 **Lemma 3.2 (application case).**
 -/
-theorem parEta_inv_app {L A B : Term Var}
-    (h : ParEta L (app A B)) :
+theorem parEta_inv_app {L A B : Term Var} :
+    ParEta L (app A B) ->
     ∃ k A' B', L = etaExp (app A' B') k ∧ ParEta A' A ∧ ParEta B' B := by
-  revert h
   induction n : Term.size L using Nat.strong_induction_on generalizing L A B with
-  | h n ih=>
+  | h n ih =>
   rintro ( h | h | h | h )
   · exact ⟨ 0, _, _, rfl, h, by assumption ⟩
   · rename_i M hM
@@ -368,11 +366,10 @@ theorem parEta_inv_app {L A B : Term Var}
 /-
 **Lemma 3.2 (abstraction case).**
 -/
-theorem parEta_inv_abs {L A : Term Var}
-    (h : ParEta L (Term.abs A)) :
+theorem parEta_inv_abs {L A : Term Var} :
+    ParEta L (Term.abs A) ->
     ∃ (k : ℕ) (A' : Term Var) (xs : Finset Var), L = etaExp (Term.abs A') k ∧
       ∀ x ∉ xs, ParEta (A' ^ fvar x) (A ^ fvar x) := by
-  revert h
   induction n : Term.size L using Nat.strong_induction_on generalizing L A with
   | h n ih =>
   rintro ( h | h | h | h )
