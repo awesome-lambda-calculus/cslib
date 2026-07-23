@@ -11,6 +11,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.MultiApp
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LcAt
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.EtaPostpone
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.SnEtaStep
 public import Cslib.Foundations.Relation.Confluence
 
 /-! Strong normalization (termination) for full beta-reduction of untyped lambda calculus. -/
@@ -191,6 +192,24 @@ lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
   (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' :=
   sn_eta_steps (SN.transGen sn_t) t_st_t'
 
+/-- **η-expansion preserves β-strong-normalisation (single step).**  If
+`t ⟶η t'` (one η-step) and `t'` is β-strongly-normalising, then so is `t`. -/
+theorem sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
+  {t t' : Term Var} (h : FullEta t t')
+    (hs : Relation.SN (FullBeta : Term Var → Term Var → Prop) t') :
+    Relation.SN (FullBeta : Term Var → Term Var → Prop) t :=
+  sn_transfer hs (parEtaC_of_fullEta h)
+
+theorem sn_eta_steps_inv [DecidableEq Var] [HasFresh Var]
+    {t t' : Term Var} (h : t ↠ηᶠ t')
+    (hs : Relation.SN (FullBeta : Term Var → Term Var → Prop) t') :
+    Relation.SN (FullBeta : Term Var → Term Var → Prop) t := by
+    induction h with grind [sn_eta_step_inv]
+
+theorem sn_eta_steps_iff [DecidableEq Var] [HasFresh Var]
+   (t_st_t' : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' := by
+   grind [sn_eta_step, sn_eta_steps_inv]
+
 /-!
 # βη strong normalisation equals β strong normalisation
 
@@ -288,88 +307,6 @@ theorem betaEta_sn_iff_beta_sn [DecidableEq Var] [HasFresh Var] (t : Term Var) :
     apply sn_betaEta_of_sn_fullBeta
     rw [Relation.SN.iff_transGen]
     assumption
-
-/-
-lemma foo [DecidableEq Var] [HasFresh Var] (n : Nat)
-  (hn : t.size = n)
-  (t_st_t' : Relation.ReflTransGen FullEta t t')
-  (sn_t : SN (Relation.TransGen FullBeta) t') :
-          SN (Relation.TransGen FullBeta) t := by
-  induction n using Nat.strong_induction_on generalizing t t' with
-  | h n ih => induction sn_t generalizing t n with
-    | intro t' h1 ih1 =>  constructor
-                          intros t'' ht''
-                          have h := foo_transbeta t_st_t' ht''
-                          obtain ⟨u, heta, hbeta⟩ := h
-                          rw [Relation.reflTransGen_iff_eq_or_transGen] at hbeta
-                          cases hbeta with
-                          | inl h =>  subst u
-                                      rw [Relation.reflTransGen_iff_eq_or_transGen] at heta
-                                      cases heta with
-                                      | inl heta => subst t''
-                                                    constructor
-                                                    grind
-                                      | inr heta => apply ih
-                                                    pick_goal 2
-                                                    rfl
-                                                    pick_goal 2
-                                                    apply Relation.TransGen.to_reflTransGen
-                                                    assumption
-                                                    pick_goal 2
-                                                    constructor
-                                                    grind
-                                                    all_goals sorry
-                          | inr h =>  apply ih1
-                                      exact h
-                                      pick_goal 3
-                                      assumption
-                                      pick_goal 2
-                                      rfl
-                                      all_goals sorry
-
-
-lemma sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
-  (t_st_t' : Relation.ReflTransGen FullEta t t')
-  (sn_t : SN (Relation.TransGen FullBeta) t') :
-          SN (Relation.TransGen FullBeta) t := by
-  induction sn_t generalizing t with
-  | intro t' h ih =>  constructor
-                      intros t'' ht''
-                      have h := foo_transbeta t_st_t' ht''
-                      obtain ⟨u, heta, hbeta⟩ := h
-                      rw [Relation.reflTransGen_iff_eq_or_transGen] at hbeta
-                      cases hbeta with
-                      | inl h =>  subst u
-                                  rw [Relation.reflTransGen_iff_eq_or_transGen] at heta
-                                  cases heta with
-                                  | inl heta => subst t''
-                                                constructor
-                                                grind
-                                  | inr heta => sorry -- maybe impossible
-                      | inr h =>  apply ih _ h heta
-
-
-theorem eta_betaNF_exists {L N : Term Var} (h : L ↠ηᶠ N) (hN : Normal FullBeta N) :
-    ∃ P, L ↠βᶠ P ∧ Normal Beta P :=
-  ((SNi.stepsEtaExpand h (NormalForm.toSNi hN)).toSNβ).wn
-
-
-theorem hasBetaNF_of_hasBetaEtaNF [DecidableEq Var] [HasFresh Var]
-  (h : Normalizable FullBetaEta t) :
-  Normalizable FullBeta t := by
-  obtain ⟨t'', h, hnormal⟩ := h
-  apply eta_postponement at h
-  obtain ⟨t', h, heta⟩ := h
-  apply fullBeta_of_fullBetaEta at hnormal
-  apply Relation.SN.of_normal at hnormal
-  have g := sn_eta_step hnormal heta
-  sorry
-
-
-theorem betaeta_factor_betaNF {M N : Term Var} (h : StepsE M N) (hN : NormalFormE N) :
-    ∃ P, Steps M P ∧ NormalForm P ∧ StepsEta P N := by
--/
-
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
