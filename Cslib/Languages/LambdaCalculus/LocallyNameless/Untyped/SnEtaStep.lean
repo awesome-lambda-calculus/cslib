@@ -144,19 +144,18 @@ theorem ParEtaC.abs_of_open {m : ℕ} {N s' : Term Var} (x : Var)
 `M[x:=N] ⟹η M'[x:=N']` (for some count `c`). -/
 theorem ParEtaC.substC {a b : ℕ} {M M' N N' : Term Var} (x : Var)
     (hM : ParEtaC a M M') (hN : ParEtaC b N N') :
-    ∃ c, ParEtaC c (subst x N M) (subst x N' M') := by
+    ∃ c, ParEtaC c M[x:=N] M'[x:=N'] := by
   induction hM generalizing N N' with
   | fvar y =>
-      by_cases h : y = x
-      · subst h; simpa [subst] using ⟨b, hN⟩
-      · simp only [subst, if_neg h]; exact ⟨0, ParEtaC.fvar y⟩
+      rw [subst_fvar, subst_fvar]
+      split
+      . grind
+      . exact ⟨0, ParEtaC.fvar y⟩
   | app hM hN ihM ihN =>
-      simp only [subst]
       obtain ⟨c1, hc1⟩ := ihM hN
       obtain ⟨c2, hc2⟩ := ihN hN
       exact ⟨c1 + c2, ParEtaC.app hc1 hc2⟩
   | @abs xs a M M' hbody ih =>
-      simp only [subst]
       have hNreg := hN.regular
       obtain ⟨y, hy⟩ := Infinite.exists_notMem_finset
         (xs ∪ {x} ∪ (M.fv) ∪ (M'.fv) ∪ N.fv ∪ N'.fv)
