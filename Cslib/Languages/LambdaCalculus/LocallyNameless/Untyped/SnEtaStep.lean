@@ -243,19 +243,19 @@ theorem interaction_abs {M0 : Term Var}
     | abs ys hbody =>
       rename_i M0'
       -- t' = abs M0', hbody : ∀ x ∉ ys, ParEtaC n (M0^x) (M0'^x)
-      obtain ⟨x, hx⟩ := Infinite.exists_notMem_finset
-        (xs ∪ ys ∪ fv M0 ∪ fv M0' ∪ fv N0)
+      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
       simp only [Finset.mem_union, not_or] at hx
       obtain ⟨⟨⟨⟨hxxs, hxys⟩, hxM0⟩, hxM0'⟩, hxN0⟩ := hx
       have hsz : size (M0 ^ Term.fvar x) < size (Term.abs M0) := by
         rw [size_open_fvar]; have : size (Term.abs M0) = size M0 + 1 := rfl; omega
-      rcases IH (M0 ^ Term.fvar x) hsz (hbody x hxys) (hbodystep x hxxs) with
+      rcases IH (M0 ^ Term.fvar x) hsz (hbody x (by grind)) (hbodystep x (by grind)) with
         ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · refine Or.inl ⟨Term.abs (closeRec 0 x s''), m, ?_, ?_⟩
-        · apply ParEtaC.abs_of_open x hxN0 (fv_closeRec_notMem 0 x s'')
-          have hopen : (closeRec 0 x s'') ^ Term.fvar x = s'' := by
-            rw [Term.hpow_def, Term.open_close_lc (ParEtaC.regular hpar).2 x, subst_fvar_self]
-          rw [hopen]; exact hpar
+        · apply ParEtaC.abs_of_open x (by grind) (by grind)
+          unfold open'
+          rw [close_openRec]
+          grind
+          apply FullBeta.step_lc_r hbeta
         · have hclose := Xi.abs_close (fun _ _ => Beta.regular)
             (fun _ _ hab yv wv hw => Beta.subst hab yv hw) x hbeta
           simp only [Term.hpow_def] at hclose
@@ -264,7 +264,7 @@ theorem interaction_abs {M0 : Term Var}
       · exact Or.inr ⟨m, hm, ParEtaC.abs_of_open x hxN0 hxM0' hpar⟩
     | @eta a2 P _ hP hPF =>
       -- M0 = app P (bvar 0), n = a2 + 1, hPF : ParEtaC a2 P t'
-      obtain ⟨x, hx⟩ := Infinite.exists_notMem_finset (xs ∪ fv P ∪ fv N0 ∪ fv t')
+      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
       simp only [Finset.mem_union, not_or] at hx
       obtain ⟨⟨⟨hxxs, hxP⟩, hxN0⟩, hxt'⟩ := hx
       have hPx : (Term.app P (Term.bvar 0)) ^ Term.fvar x = Term.app P (Term.fvar x) :=
