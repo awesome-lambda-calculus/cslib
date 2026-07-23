@@ -104,8 +104,8 @@ variable [DecidableEq Var]
 
 /-- **Renaming preserves the count.** Substituting one free variable for another
 in a `ParEtaC` derivation preserves the derivation and its count. -/
-theorem ParEtaC.rename {n : ℕ} {A B : Term Var} (h : ParEtaC n A B) (x y : Var) :
-    ParEtaC n (A[x:=Term.fvar y]) (B[x:=Term.fvar y]) := by
+theorem ParEtaC.subst {n : ℕ} {A B : Term Var} (h : ParEtaC n A B) (x y : Var) :
+    ParEtaC n A[x:=Term.fvar y] B[x:=Term.fvar y] := by
   induction h with
   | fvar z => rw [subst_fvar]
               split <;> apply ParEtaC.refl (LC.fvar _)
@@ -124,7 +124,7 @@ theorem ParEtaC.abs_of_open {m : ℕ} {N s' : Term Var} (x : Var)
   intro y hy
   by_cases hyc : y = x
   · rw [hyc]; exact h
-  · grind [ParEtaC.rename h x y]
+  · grind [ParEtaC.subst h x y]
 
 /-- **Fact 2.3 (Substitutivity).** If `M ⟹η M'` and `N ⟹η N'`, then
 `M[x:=N] ⟹η M'[x:=N']` (for some count `c`). -/
@@ -211,9 +211,8 @@ theorem interaction_abs {M0 : Term Var}
     | @eta a2 P _ hP hPF =>
       -- M0 = app P (bvar 0), n = a2 + 1, hPF : ParEtaC a2 P t'
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have hPx : (Term.app P (Term.bvar 0)) ^ Term.fvar x = Term.app P (Term.fvar x) := by grind
       have hstepx : FullBeta (Term.app P (Term.fvar x)) (N0 ^ Term.fvar x) := by
-        have h := hbodystep x (by grind); rwa [hPx] at h
+        grind [hbodystep x (by grind)]
       generalize hw : N0 ^ Term.fvar x = w at hstepx
       cases hstepx with
       | base hβ =>
@@ -229,17 +228,20 @@ theorem interaction_abs {M0 : Term Var}
         have hPsLC : LC N := FullBeta.step_lc_r hxi
         have hxN : x ∉ fv N := by grind [FullBeta.step_not_fv hxi]
         have hNe : N0 = Term.app N (Term.bvar 0) := by apply @open_fvar_inj _ _ _ _ x <;> grind
-        have hsizeP : size P < size (Term.abs (Term.app P (Term.bvar 0))) := by
-          have : size (Term.abs (Term.app P (Term.bvar 0))) = size P + 3 := rfl
-          omega
-        rcases IH P hsizeP hPF hxi with ⟨s', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
+        rcases IH P (by grind) hPF hxi with ⟨s', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
         · exact Or.inl ⟨s', m + 1, by rw [hNe]; exact ParEtaC.eta hPsLC hpar, hbeta⟩
         · exact Or.inr ⟨m + 1, by omega, by rw [hNe]; exact ParEtaC.eta hPsLC hpar⟩
 
-/-- **The Interaction Lemma, one step of the size-recursion.**  Assuming the
-Interaction property holds for all strictly smaller terms, it holds at `t`. -/
-theorem interaction_step {t : Term Var}
-    (IH : ∀ u : Term Var, size u < size t → InteractionAt u) : InteractionAt t := by
+/-- **The Interaction Lemma.** A single β-step `t ⟶β s` against a parallel
+η-derivation `t ⟹η t'` either reflects to a genuine β-step `t' ⟶β s'` (with `s`
+still parallel-η-reducing to `s'`), or is absorbed — landing back on `t'` with a
+strictly smaller η-count. -/
+theorem interaction {t : Term Var} : InteractionAt t := by
+  induction heq : t.size using Nat.strong_induction_on generalizing t with | h n IH' =>
+  have IH : ∀ t : Term Var, t.size < n → t.InteractionAt := fun t h =>
+    IH' _ (Nat.lt_of_lt_of_eq (by omega) (by rfl)) rfl
+  clear IH'
+  subst n
   intro n t' s hp hb
   cases hb with
   | base hβ =>
@@ -273,19 +275,6 @@ theorem interaction_step {t : Term Var}
       · exact Or.inr ⟨m + b, by omega, ParEtaC.app hpar hZ'⟩
   | abs xs hbodystep => exact interaction_abs IH hp (Xi.abs xs hbodystep)
 
-/-- **The Interaction Lemma.** A single β-step `t ⟶β s` against a parallel
-η-derivation `t ⟹η t'` either reflects to a genuine β-step `t' ⟶β s'` (with `s`
-still parallel-η-reducing to `s'`), or is absorbed — landing back on `t'` with a
-strictly smaller η-count. -/
-theorem interaction {t : Term Var} : InteractionAt t := by
-  have key : ∀ k (t : Term Var), size t = k → InteractionAt t := by
-    intro k
-    induction k using Nat.strong_induction_on with
-    | _ k ihk =>
-      intro t ht
-      exact interaction_step (fun u hu => ihk (size u) (ht ▸ hu) u rfl)
-  intro n t' s hp hb
-  exact key (size t) t rfl hp hb
 
 /-- **Generalized SN-transfer theorem.**  If `t ⟹η t'` (parallel η, any count)
 and `t'` is β-strongly-normalising, then so is `t`. -/
@@ -295,17 +284,12 @@ theorem sn_transfer {t t' : Term Var}
     Relation.SN (FullBeta : Term Var → Term Var → Prop) t := by
   induction hacc generalizing t n with
   | intro c hc ih =>
-      have key : ∀ n t, ParEtaC n t c →
-          Relation.SN (FullBeta : Term Var → Term Var → Prop) t := by
-        intro n
-        induction n using Nat.strong_induction_on with
-        | _ n ihn =>
-          intro t hp
-          refine Acc.intro t (fun s hs => ?_)
-          rcases interaction hp hs with ⟨s', m, hps', hb'⟩ | ⟨m, hm, hps⟩
-          · exact ih s' hb' hps'
-          · exact ihn m hm s hps
-      exact key n t hp
+    induction n using Nat.strong_induction_on generalizing t with
+    | _ n ihn =>
+      refine Acc.intro t (fun s hs => ?_)
+      rcases interaction hp hs with ⟨s', m, hps', hb'⟩ | ⟨m, hm, hps⟩
+      · exact ih s' hb' hps'
+      · exact ihn m hm hps
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
