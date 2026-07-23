@@ -149,36 +149,26 @@ theorem ParEtaC.substC {a b : ℕ} {M M' N N' : Term Var} (x : Var)
   | fvar y =>
       rw [subst_fvar, subst_fvar]
       split
-      . grind
-      . exact ⟨0, ParEtaC.fvar y⟩
+      · grind
+      · exact ⟨0, ParEtaC.fvar y⟩
   | app hM hN ihM ihN =>
       obtain ⟨c1, hc1⟩ := ihM hN
       obtain ⟨c2, hc2⟩ := ihN hN
       exact ⟨c1 + c2, ParEtaC.app hc1 hc2⟩
   | @abs xs a M M' hbody ih =>
       have hNreg := hN.regular
-      obtain ⟨y, hy⟩ := Infinite.exists_notMem_finset
-        (xs ∪ {x} ∪ (M.fv) ∪ (M'.fv) ∪ N.fv ∪ N'.fv)
+      have ⟨y, hy⟩ := fresh_exists <| free_union [fv] Var
       have hyxs : y ∉ xs := fun h => hy (by simp [h])
-      have hyx : ¬y = x := fun h => hy (by simp [h])
       obtain ⟨c, hc⟩ := ih y hyxs hN
       use c
       apply abs_of_open y
-      · intro H
-        have := fv_subst_subset x N _ H
-        simp_all [Finset.mem_union, Finset.mem_sdiff]
-      · intro H
-        have := fv_subst_subset x N' _ H
-        simp_all [Finset.mem_union, Finset.mem_sdiff]
-      · rw [subst_open_var (Ne.symm hyx) hNreg.1] at hc
-        rw [subst_open_var (Ne.symm hyx) hNreg.2] at hc
-        exact hc
+      · grind [subst_preserve_not_fvar]
+      · grind [subst_preserve_not_fvar]
+      · grind
   | @eta a M M' hM hMM' ih =>
       obtain ⟨c, hc⟩ := ih hN
       use c + 1
-      have hsub : subst x N ((M.app (Term.bvar 0)).abs)
-          = ((subst x N M).app (Term.bvar 0)).abs := by
-        simp only [Term.subst]
+      have hsub : ((M.app (Term.bvar 0)).abs)[x:=N] = ((M[x:=N]).app (Term.bvar 0)).abs := by grind
       rw [hsub]
       exact ParEtaC.eta hc.regular.1 hc
 
@@ -193,17 +183,16 @@ theorem ParEtaC.open_of_absBody {a b : ℕ} (xs : Finset Var) {M M' N N' : Term 
   obtain ⟨⟨hxxs, hxM⟩, hxM'⟩ := hx
   obtain ⟨c, hc⟩ := ParEtaC.substC x (hbody x hxxs) hN
   refine ⟨c, ?_⟩
-  rw [show M ^ N = subst x N (M ^ Term.fvar x) from subst_intro hxM,
-      show M' ^ N' = subst x N' (M' ^ Term.fvar x) from subst_intro hxM']
-  exact hc
+  grind
 
 omit [Infinite Var] in
 /-- Opening by a fresh free variable is injective. -/
 theorem open_fvar_inj {A B : Term Var} {x : Var} (hA : x ∉ fv A) (hB : x ∉ fv B)
     (h : A ^ Term.fvar x = B ^ Term.fvar x) : A = B := by
   have hcl : closeRec 0 x (A ^ Term.fvar x) = closeRec 0 x (B ^ Term.fvar x) := by rw [h]
-  simp only [Term.hpow_def] at hcl
-  rwa [Term.close_open hA, Term.close_open hB] at hcl
+  unfold open' at hcl
+  rw [<- open_close, <- open_close] at hcl
+  all_goals grind
 
 omit [Infinite Var] in
 /-- `x` is not free in `closeRec k x t`. -/
@@ -213,10 +202,12 @@ theorem fv_closeRec_notMem (k : ℕ) (x : Var) (t : Term Var) : x ∉ fv (closeR
   | fvar y =>
       by_cases h : y = x
       · simp [closeRec, fv, h]
-      · simp only [closeRec, if_neg h, fv, Finset.mem_singleton]; exact fun e => h e.symm
+      · simp only [closeRec]
+        grind
   | abs t ih => simpa [closeRec, fv] using ih (k+1)
   | app t1 t2 ih1 ih2 =>
-      simp only [closeRec, fv, Finset.mem_union]; push_neg; exact ⟨ih1 k, ih2 k⟩
+      simp only [closeRec, fv, Finset.mem_union]
+      grind
 
 omit [Infinite Var] in
 /-- Substituting `x` by `fvar x` is the identity. -/
