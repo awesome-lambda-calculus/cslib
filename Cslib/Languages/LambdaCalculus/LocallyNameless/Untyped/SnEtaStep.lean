@@ -1,4 +1,19 @@
-import RequestProject.TakahashiSupport
+/-
+Copyright (c) 2025 Chris Henson. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Yijun Leng
+-/
+
+
+module
+
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaConfluence
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.NormalBeta
+public import Cslib.Foundations.Relation.Confluence
 
 /-!
 # η-expansion preserves β-strong-normalisation (`sn_eta_step`)
@@ -24,13 +39,17 @@ ingredients are:
   `(β-accessibility rank of t', count n)`.
 -/
 
-open scoped Classical
+@[expose] public section
+
+set_option linter.unusedDecidableInType false
+
+namespace Cslib
 
 universe u
 
-namespace LambdaLN
+namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
-open Term
+variable {Var : Type u}
 
 variable {Var : Type u} [Infinite Var]
 
@@ -50,12 +69,6 @@ inductive ParEtaC : ℕ → Term Var → Term Var → Prop
   | eta {a : ℕ} {M M' : Term Var} :
       LC M → ParEtaC a M M' → ParEtaC (a + 1) (Term.abs (Term.app M (Term.bvar 0))) M'
 
-/-- Opening the η-redex body `app M (bvar 0)` of a locally closed `M`. -/
-theorem openRec_app_bvar_lc {M : Term Var} (hM : LC M) (x : Var) :
-    (Term.app M (Term.bvar 0)) ^ Term.fvar x = Term.app M (Term.fvar x) := by
-  show Term.app (openRec 0 (Term.fvar x) M) (openRec 0 (Term.fvar x) (Term.bvar 0)) = _
-  rw [openRec_lc hM]; rfl
-
 /-- `ParEtaC` relates locally closed terms. -/
 theorem ParEtaC.regular {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC M ∧ LC N := by
   induction h with
@@ -65,13 +78,12 @@ theorem ParEtaC.regular {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC M �
       exact ⟨LC.abs xs _ (fun x hx => (ih x hx).1), LC.abs xs _ (fun x hx => (ih x hx).2)⟩
   | @eta a M M' hM hMM' ih =>
       refine ⟨LC.abs (∅ : Finset Var) _ (fun y _ => ?_), ih.2⟩
-      rw [openRec_app_bvar_lc hM]
-      exact LC.app hM (LC.fvar y)
+      apply LC.app <;> grind
 
 omit [Infinite Var] in
 /-- `ParEtaC` is reflexive at count `0` on locally closed terms. -/
 theorem ParEtaC.refl {M : Term Var} (h : LC M) : ParEtaC 0 M M := by
-  induction' n : M.size using Nat.strong_induction_on with n ih generalizing M;
+  induction n : M.size using Nat.strong_induction_on generalizing M with | h n ih =>
   match h with
   | LC.fvar x => simp +arith [Term.size] at n; exact ParEtaC.fvar x
   | LC.app h₁ h₂ =>
@@ -435,4 +447,7 @@ theorem sn_eta_step {t t' : Term Var} (h : FullEta t t')
     Acc (flip (FullBeta : Term Var → Term Var → Prop)) t :=
   sn_transfer hs (parEtaC_of_fullEta h)
 
-end LambdaLN
+
+end LambdaCalculus.LocallyNameless.Untyped.Term
+
+end Cslib
