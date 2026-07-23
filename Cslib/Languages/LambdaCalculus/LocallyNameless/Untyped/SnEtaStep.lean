@@ -109,26 +109,22 @@ theorem parEtaC_of_fullEta {t t' : Term Var} (h : FullEta t t') : ParEtaC 1 t t'
   | abs k hbody ih =>
       exact ParEtaC.abs k ih
 
+variable [DecidableEq Var]
+
 /-- **Renaming preserves the count.** Substituting one free variable for another
 in a `ParEtaC` derivation preserves the derivation and its count. -/
 theorem ParEtaC.rename {n : ℕ} {A B : Term Var} (h : ParEtaC n A B) (x y : Var) :
-    ParEtaC n (subst x (Term.fvar y) A) (subst x (Term.fvar y) B) := by
+    ParEtaC n (A[x:=Term.fvar y]) (B[x:=Term.fvar y]) := by
   induction h with
-  | fvar z =>
-      by_cases hz : z = x
-      · subst hz; simp only [subst]; exact ParEtaC.fvar y
-      · simp only [subst, if_neg hz]; exact ParEtaC.fvar z
-  | app hM hN ihM ihN => simp only [subst]; exact ParEtaC.app ihM ihN
+  | fvar z => rw [subst_fvar]
+              split <;> apply ParEtaC.refl (LC.fvar _)
+  | @eta a M M' hM hMM' ih => exact ParEtaC.eta (subst_lc hM (LC.fvar y)) ih
+  | app hM hN ihM ihN => exact ParEtaC.app ihM ihN
   | @abs xs a M M' hbody ih =>
-      simp only [subst]
       refine ParEtaC.abs (xs ∪ {x}) (fun z hz => ?_)
-      have hzx : x ≠ z := fun h => hz (by simp [h])
       have hzxs : z ∉ xs := fun h => hz (by simp [h])
       have key := ih z hzxs
-      rwa [subst_open_var hzx (LC.fvar y), subst_open_var hzx (LC.fvar y)] at key
-  | @eta a M M' hM hMM' ih =>
-      simp only [subst]
-      exact ParEtaC.eta (subst_lc hM (LC.fvar y)) ih
+      rw [subst_open_var, subst_open_var] at key <;> grind
 
 /-- Build an abstraction derivation from a single fresh-variable body instance. -/
 theorem ParEtaC.abs_of_open {m : ℕ} {N s' : Term Var} (x : Var)
@@ -139,16 +135,8 @@ theorem ParEtaC.abs_of_open {m : ℕ} {N s' : Term Var} (x : Var)
   by_cases hyc : y = x
   · rw [hyc]; exact h
   · have hr := ParEtaC.rename h x y
-    have eqN : N ^ Term.fvar y = subst x (Term.fvar y) (N ^ Term.fvar x) := by
-      rw [Term.hpow_def, Term.hpow_def]
-      rw [subst_openRec (LC.fvar y) 0 (Term.fvar x) N]
-      rw [subst_fresh hx]
-      simp +decide [subst]
-    have eqN' : s' ^ Term.fvar y = subst x (Term.fvar y) (s' ^ Term.fvar x) := by
-      rw [Term.hpow_def, Term.hpow_def]
-      rw [subst_openRec (LC.fvar y) 0 (Term.fvar x) s']
-      rw [subst_fresh hx']
-      simp +decide [subst]
+    have eqN : N ^ Term.fvar y = (N ^ Term.fvar x)[x:=Term.fvar y] := by grind
+    have eqN' : s' ^ Term.fvar y = (s' ^ Term.fvar x)[x:=Term.fvar y]  := by grind
     rw [eqN, eqN']
     exact hr
 
