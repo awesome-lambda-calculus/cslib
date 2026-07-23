@@ -209,20 +209,6 @@ theorem fv_closeRec_notMem (k : ℕ) (x : Var) (t : Term Var) : x ∉ fv (closeR
       simp only [closeRec, fv, Finset.mem_union]
       grind
 
-omit [Infinite Var] in
-/-- Substituting `x` by `fvar x` is the identity. -/
-theorem subst_fvar_self (x : Var) (t : Term Var) : subst x (Term.fvar x) t = t := by
-  induction t with
-  | bvar i => rfl
-  | fvar y => by_cases h : y = x <;> simp [subst, h]
-  | abs t ih => simp [subst, ih]
-  | app a b iha ihb => simp [subst, iha, ihb]
-
-omit [Infinite Var] in
-/-- The base β-rule does not create free variables. -/
-theorem beta_fv_subset {a b : Term Var} (h : Beta a b) : fv b ⊆ fv a := by
-  induction h with
-  | beta hM hN => simp [Term.fv, Term.fv_openRec]
 
 omit [Infinite Var] in
 /-- Opening never drops existing free variables. -/
@@ -235,33 +221,6 @@ theorem fv_subset_openRec (k : ℕ) (u t : Term Var) : fv t ⊆ fv (openRec k u 
       intro y hy
       simp only [openRec, fv, Finset.mem_union] at hy ⊢
       exact hy.imp (fun h => ih1 k h) (fun h => ih2 k h)
-
-/-- Full β-reduction does not create free variables (needs `Infinite Var` so the
-ξ-rule's cofinite quantification is nonvacuous). -/
-theorem fullBeta_fv_subset {a b : Term Var} (h : FullBeta a b) : fv b ⊆ fv a := by
-  induction h with
-  | base hb => exact beta_fv_subset hb
-  | @appL Z M N hZ hxi ih =>
-      intro y hy
-      simp only [fv, Finset.mem_union] at hy ⊢
-      exact hy.imp id (fun hh => ih hh)
-  | @appR Z M N hZ hxi ih =>
-      intro y hy
-      simp only [fv, Finset.mem_union] at hy ⊢
-      exact hy.imp (fun hh => ih hh) id
-  | @abs xs M N hbody ih =>
-      intro y hy
-      simp only [fv] at hy ⊢
-      obtain ⟨z, hz⟩ := Infinite.exists_notMem_finset (xs ∪ fv M ∪ fv N ∪ {y})
-      simp only [Finset.mem_union, Finset.mem_singleton, not_or] at hz
-      obtain ⟨⟨⟨hzxs, hzM⟩, hzN⟩, hzy⟩ := hz
-      have hyNz : y ∈ fv (N ^ Term.fvar z) := fv_subset_openRec 0 (Term.fvar z) N hy
-      have hyMz : y ∈ fv (M ^ Term.fvar z) := ih z hzxs hyNz
-      have hsub := fv_openRec 0 (Term.fvar z) M hyMz
-      simp only [fv, Finset.mem_union, Finset.mem_singleton] at hsub
-      rcases hsub with h1 | h1
-      · exact h1
-      · exact absurd h1.symm hzy
 
 /-- The conclusion of the Interaction Lemma at a fixed source term `t`. -/
 def InteractionAt (t : Term Var) : Prop :=
@@ -381,8 +340,7 @@ theorem interaction_step {t : Term Var}
       rcases IH M0 hsz hM0 hstep with ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · exact Or.inl ⟨_, m + b, ParEtaC.app hpar hZ', Xi.appR (ParEtaC.regular hZ').2 hbeta⟩
       · exact Or.inr ⟨m + b, by omega, ParEtaC.app hpar hZ'⟩
-  | @abs xs M0 N0 hbodystep =>
-    exact interaction_abs IH hp (Xi.abs xs hbodystep)
+  | abs xs hbodystep => exact interaction_abs IH hp (Xi.abs xs hbodystep)
 
 /-- **The Interaction Lemma.** A single β-step `t ⟶β s` against a parallel
 η-derivation `t ⟹η t'` either reflects to a genuine β-step `t' ⟶β s'` (with `s`
