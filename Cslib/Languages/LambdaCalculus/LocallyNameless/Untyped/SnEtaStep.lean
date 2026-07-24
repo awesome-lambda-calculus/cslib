@@ -177,61 +177,6 @@ def InteractionAt (t : Term Var) : Prop :=
   ∀ {n : ℕ} {t' s : Term Var}, ParEtaC n t t' → FullBeta t s →
     (∃ s' m, ParEtaC m s s' ∧ FullBeta t' s') ∨ (∃ m, m < n ∧ ParEtaC m s t')
 
-/-- **The Interaction Lemma for an abstraction source** `abs M0`.  This is the
-case of `interaction_step` where `t = abs M0`; it is factored out because it
-requires two sub-analyses (the parallel derivation contracts the abstraction by
-congruence, or by an outer η-redex). -/
-theorem interaction_abs {M0 : Term Var}
-    (IH : ∀ u : Term Var, size u < size (Term.abs M0) → InteractionAt u) :
-    InteractionAt (Term.abs M0) := by
-  intro n t' s hp hb
-  cases hb with
-  | base hβ => cases hβ
-  | @abs _ N0 xs hbodystep =>
-    -- s = abs N0, hbodystep : ∀ x ∉ xs, FullBeta (M0^x) (N0^x)
-    cases hp with
-    | abs ys hbody =>
-      rename_i M0'
-      -- t' = abs M0', hbody : ∀ x ∉ ys, ParEtaC n (M0^x) (M0'^x)
-      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have hsz : size (M0 ^ Term.fvar x) < size (Term.abs M0) := by
-        rw [size_open_fvar]; have : size (Term.abs M0) = size M0 + 1 := rfl; omega
-      rcases IH (M0 ^ Term.fvar x) hsz (hbody x (by grind)) (hbodystep x (by grind)) with
-        ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
-      · refine Or.inl ⟨Term.abs (closeRec 0 x s''), m, ParEtaC.abs_of_open x ?_ ?_ ?_ , ?_⟩
-        · grind
-        · grind
-        · unfold open'
-          rw [close_openRec _ _ _ (FullBeta.step_lc_r hbeta)]
-          grind
-        · rw [open_close x M0' 0 (by grind)]
-          apply FullBeta.step_abs_close
-          all_goals grind
-      · exact Or.inr ⟨m, hm, ParEtaC.abs_of_open x (by grind) (by grind) hpar⟩
-    | @eta a2 P _ hP hPF =>
-      -- M0 = app P (bvar 0), n = a2 + 1, hPF : ParEtaC a2 P t'
-      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have hstepx : FullBeta (Term.app P (Term.fvar x)) (N0 ^ Term.fvar x) := by
-        grind [hbodystep x (by grind)]
-      generalize hw : N0 ^ Term.fvar x = w at hstepx
-      cases hstepx with
-      | base hβ =>
-        cases hβ with
-        | @beta Q Narg hQ hNarg =>
-          -- P = abs Q, Narg = fvar x, w = Q ^ fvar x, hw : N0^x = Q^x
-          have hN0Q : N0 = Q := open_fvar_inj (by grind) (by grind) hw
-          exact Or.inr ⟨a2, by omega, by rw [hN0Q]; exact hPF⟩
-      | @appL Z M N hZ hxi =>
-        cases hxi with | base hb2 => cases hb2
-      | @appR Z M N hZ hxi =>
-        -- M = P, Z = fvar x; hxi : FullBeta P N; w = app N (fvar x)
-        have hPsLC : LC N := FullBeta.step_lc_r hxi
-        have hxN : x ∉ fv N := by grind [FullBeta.step_not_fv hxi]
-        have hNe : N0 = Term.app N (Term.bvar 0) := by apply @open_fvar_inj _ _ _ _ x <;> grind
-        rcases IH P (by grind) hPF hxi with ⟨s', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
-        · exact Or.inl ⟨s', m + 1, by rw [hNe]; exact ParEtaC.eta hPsLC hpar, hbeta⟩
-        · exact Or.inr ⟨m + 1, by omega, by rw [hNe]; exact ParEtaC.eta hPsLC hpar⟩
-
 /-- **The Interaction Lemma.** A single β-step `t ⟶β s` against a parallel
 η-derivation `t ⟹η t'` either reflects to a genuine β-step `t' ⟶β s'` (with `s`
 still parallel-η-reducing to `s'`), or is absorbed — landing back on `t'` with a
@@ -273,8 +218,48 @@ theorem interaction {t : Term Var} : InteractionAt t := by
       rcases IH M0 (by grind) hM0 hstep with ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · exact Or.inl ⟨_, m + b, ParEtaC.app hpar hZ', Xi.appR (ParEtaC.step_lc_r hZ') hbeta⟩
       · exact Or.inr ⟨m + b, by omega, ParEtaC.app hpar hZ'⟩
-  | abs xs hbodystep => exact interaction_abs IH hp (Xi.abs xs hbodystep)
-
+  | @abs M0 N0 xs hbodystep =>
+    cases hp with
+    | @abs _ _ ys M0' hbody =>
+      -- t' = abs M0', hbody : ∀ x ∉ ys, ParEtaC n (M0^x) (M0'^x)
+      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
+      have hsz : size (M0 ^ Term.fvar x) < size (Term.abs M0) := by
+        rw [size_open_fvar]; have : size (Term.abs M0) = size M0 + 1 := rfl; omega
+      rcases IH (M0 ^ Term.fvar x) hsz (hbody x (by grind)) (hbodystep x (by grind)) with
+        ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
+      · refine Or.inl ⟨Term.abs (closeRec 0 x s''), m, ParEtaC.abs_of_open x ?_ ?_ ?_, ?_⟩
+        · grind
+        · grind
+        · unfold open'
+          rw [close_openRec _ _ _ (FullBeta.step_lc_r hbeta)]
+          grind
+        · rw [open_close x M0' 0 (by grind)]
+          apply FullBeta.step_abs_close
+          all_goals grind
+      · exact Or.inr ⟨m, hm, ParEtaC.abs_of_open x (by grind) (by grind) hpar⟩
+    | @eta a2 P _ hP hPF =>
+      -- M0 = app P (bvar 0), n = a2 + 1, hPF : ParEtaC a2 P t'
+      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
+      have hstepx : FullBeta (Term.app P (Term.fvar x)) (N0 ^ Term.fvar x) := by
+        grind [hbodystep x (by grind)]
+      generalize hw : N0 ^ Term.fvar x = w at hstepx
+      cases hstepx with
+      | base hβ =>
+        cases hβ with
+        | @beta Q Narg hQ hNarg =>
+          -- P = abs Q, Narg = fvar x, w = Q ^ fvar x, hw : N0^x = Q^x
+          have hN0Q : N0 = Q := open_fvar_inj (by grind) (by grind) hw
+          exact Or.inr ⟨a2, by omega, by rw [hN0Q]; exact hPF⟩
+      | @appL Z M N hZ hxi =>
+        cases hxi with | base hb2 => cases hb2
+      | @appR Z M N hZ hxi =>
+        -- M = P, Z = fvar x; hxi : FullBeta P N; w = app N (fvar x)
+        have hPsLC : LC N := FullBeta.step_lc_r hxi
+        have hxN : x ∉ fv N := by grind [FullBeta.step_not_fv hxi]
+        have hNe : N0 = Term.app N (Term.bvar 0) := by apply @open_fvar_inj _ _ _ _ x <;> grind
+        rcases IH P (by grind) hPF hxi with ⟨s', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
+        · exact Or.inl ⟨s', m + 1, by rw [hNe]; exact ParEtaC.eta hPsLC hpar, hbeta⟩
+        · exact Or.inr ⟨m + 1, by omega, by rw [hNe]; exact ParEtaC.eta hPsLC hpar⟩
 
 /-- **Generalized SN-transfer theorem.**  If `t ⟹η t'` (parallel η, any count)
 and `t'` is β-strongly-normalising, then so is `t`. -/
