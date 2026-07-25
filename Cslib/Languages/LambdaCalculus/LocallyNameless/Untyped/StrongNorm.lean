@@ -11,7 +11,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ListFullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LcAt
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.EtaPostpone
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.SnEtaStep
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEtaC
 public import Cslib.Foundations.Relation.Confluence
 
 /-! Strong normalization (termination) for full beta-reduction of untyped lambda calculus. -/
