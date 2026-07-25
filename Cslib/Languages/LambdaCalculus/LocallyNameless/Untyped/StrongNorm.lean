@@ -160,13 +160,12 @@ lemma sn_abs_app_multiApp [DecidableEq Var] [HasFresh Var] {Ps : List (Term Var)
               all_goals grind
 
 lemma sn_eta_steps [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN (TransGen FullBeta) t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' := by
+  (t_st_t' : t ↠ηᶠ t') (sn_t : SN (TransGen FullBeta) t) : SN FullBeta t' := by
   induction sn_t generalizing t' with
   | intro t h ih => constructor
                     intros t'' ht''
-                    obtain ⟨_, g, _⟩ := eta_beta_postpone t_st_t' (.single ht'')
-                    apply ih _ g
-                    assumption
+                    obtain ⟨_, h1, h2⟩ := eta_beta_postpone t_st_t' (.single ht'')
+                    apply ih _ h1 h2
 
 
 theorem acc_cong {α : Sort u} {r s : α → α → Prop}
@@ -189,25 +188,21 @@ theorem acc_cong {α : Sort u} {r s : α → α → Prop}
       exact ih z hsz
 
 lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
-  (sn_t : SN FullBeta t) (t_st_t' : t ↠ηᶠ t') : SN FullBeta t' :=
-  sn_eta_steps (SN.transGen sn_t) t_st_t'
+  (t_st_t' : t ↠ηᶠ t') (sn_t : SN FullBeta t) : SN FullBeta t' :=
+    sn_eta_steps t_st_t' (SN.transGen sn_t)
 
 /-- **η-expansion preserves β-strong-normalisation (single step).**  If
 `t ⟶η t'` (one η-step) and `t'` is β-strongly-normalising, then so is `t`. -/
 theorem sn_eta_step_inv [DecidableEq Var] [HasFresh Var]
-  {t t' : Term Var} (h : FullEta t t')
-    (hs : Relation.SN (FullBeta : Term Var → Term Var → Prop) t') :
-    Relation.SN (FullBeta : Term Var → Term Var → Prop) t :=
-  sn_transfer hs (parEtaC_of_fullEta h)
+  (t_st_t' : t ⭢ηᶠ t') (sn_t' : SN FullBeta t') : SN FullBeta t :=
+    sn_transfer sn_t' (parEtaC_of_fullEta t_st_t')
 
 theorem sn_eta_steps_inv [DecidableEq Var] [HasFresh Var]
-    {t t' : Term Var} (h : t ↠ηᶠ t')
-    (hs : Relation.SN (FullBeta : Term Var → Term Var → Prop) t') :
-    Relation.SN (FullBeta : Term Var → Term Var → Prop) t := by
-    induction h with grind [sn_eta_step_inv]
+  (t_st_t' : t ↠ηᶠ t') (sn_t' : SN FullBeta t') : SN FullBeta t := by
+    induction t_st_t' with grind [sn_eta_step_inv]
 
 theorem sn_eta_steps_iff [DecidableEq Var] [HasFresh Var]
-   (t_st_t' : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' := by
+  (t_st_t' : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' := by
    grind [sn_eta_step, sn_eta_steps_inv]
 
 /-!
@@ -281,8 +276,7 @@ theorem sn_betaEta_of_sn_fullBeta [DecidableEq Var] [HasFresh Var]
   induction hB with
   | intro t hBacc IHB =>
       -- IHB : ∀ d, TransGen FullBeta t d → Acc (flip BetaEtaStep) d
-      exact betaEtaSN_inner t (fun d hd => IHB d hd) (wellFoundedFullEta.apply t)
-        Relation.ReflTransGen.refl
+      exact betaEtaSN_inner t IHB (wellFoundedFullEta.apply t) Relation.ReflTransGen.refl
 
 /-! ## The forward direction and the equivalence -/
 
