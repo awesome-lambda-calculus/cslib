@@ -88,6 +88,18 @@ lemma invert_step_app_fvar (step : app M (fvar x) ⭢βᶠ N) :
   case appR step_M _ => exact .inl ⟨_, rfl, step_M⟩
   all_goals grind only [cases Xi]
 
+lemma steps_fvar_app {x} (steps : (fvar x).app M ↠βᶠ N) :
+  ∃ M',  M ↠βᶠ M' /\ N = (fvar x).app M' := by
+  induction steps with
+  | refl => grind
+  | tail _ step ih =>
+    obtain ⟨_, _, _⟩ := ih
+    subst_vars
+    cases step with
+    | base step => grind
+    | appL _ _ => grind
+    | appR _ step => cases step with | base step => cases step
+
 variable [HasFresh Var] [DecidableEq Var]
 
 /-- The right side of a reduction is locally closed. -/
