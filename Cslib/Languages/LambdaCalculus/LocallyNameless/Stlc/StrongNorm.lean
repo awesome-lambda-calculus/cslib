@@ -74,7 +74,7 @@ lemma semanticMap_saturated (τ : Ty Base) : @Saturated Var (semanticMap τ) := 
       grind only [semanticMap,
                   = List.foldl_append,
                   = List.foldl_cons,
-                  usr Set.mem_setOf_eq,
+                  usr Set.mem_ofPred_eq,
                   = List.foldl_nil,
                   ih₂.multiApp M N (P ++ [s])]
 
