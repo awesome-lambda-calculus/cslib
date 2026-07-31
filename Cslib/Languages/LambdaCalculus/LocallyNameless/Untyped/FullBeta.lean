@@ -134,6 +134,11 @@ lemma step_not_fv (step : M ⭢βᶠ N) : N.fv ⊆ M.fv := by
     grind [open_preserve_not_fvar 0 M N]
   | _ => grind
 
+lemma steps_fv (steps : M ↠βᶠ N) : N.fv ⊆ M.fv := by
+  induction steps with
+  | refl => grind
+  | tail _ h _ => grind [step_not_fv h]
+
 /-- Abstracting then closing preserves a single reduction. -/
 lemma step_abs_close {x : Var} (step : M ⭢βᶠ M') : M⟦0 ↜ x⟧.abs ⭢βᶠ M'⟦0 ↜ x⟧.abs := by
   grind [Xi.abs ∅, redex_subst_cong]
