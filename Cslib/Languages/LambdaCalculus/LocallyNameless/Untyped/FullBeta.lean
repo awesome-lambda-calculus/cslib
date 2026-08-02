@@ -100,6 +100,9 @@ lemma steps_fvar_app {x} (steps : (fvar x).app M ↠βᶠ N) :
     | appL _ _ => grind
     | appR _ step => cases step with | base step => cases step
 
+lemma depth0 (step : M ⭢βᶠ N) (hdepth : M.depth = 0) : False := by
+  induction step with grind
+
 variable [HasFresh Var] [DecidableEq Var]
 
 /-- The right side of a reduction is locally closed. -/
