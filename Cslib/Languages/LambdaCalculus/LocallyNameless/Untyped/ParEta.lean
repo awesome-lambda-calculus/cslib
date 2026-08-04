@@ -258,8 +258,8 @@ theorem etaExp_app_collapse [DecidableEq Var] [HasFresh Var]
   induction k with
   | zero => exact .refl
   | succ k ih =>
-    refine Relation.ReflTransGen.head ?_ ih
-    convert Xi.base ( Beta.beta ( etaExp_lc hB ( k + 1 ) ) hG )
+    refine Relation.ReflTransGen.head (Xi.base ?_) ih
+    convert Beta.beta ( etaExp_lc hB ( k + 1 ) ) hG
     · grind
     · unfold open' openRec
       apply congr
