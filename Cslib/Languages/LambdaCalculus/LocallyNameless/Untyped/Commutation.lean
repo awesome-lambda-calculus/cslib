@@ -11,6 +11,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEtaC
 
 /-!
 # Takahashi's η/β commutation lemma
@@ -95,8 +96,7 @@ theorem comm_base {M0 u : Term Var} (hM0 : LC M0)
   obtain ⟨ ys, hbody ⟩ := hbody
   have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
   obtain ⟨ M0'', hM0'' ⟩ : ∃ M0'', FullBeta M0 M0'' ∧ S' ^ fvar z = app M0'' (fvar z) ∨ M0 = abs M0'' ∧ S' ^ fvar z = M0'' ^ fvar z := by
-    obtain ⟨ M0'', hM0'' ⟩ : ∃ M0'', FullBeta (app M0 (fvar z)) M0'' ∧ S' ^ fvar z = M0'' := by
-      exact ⟨ _, hbody z (by grind), rfl ⟩;
+    obtain ⟨M0'', hM0''⟩ : ∃ M0'', FullBeta (app M0 (fvar z)) M0'' ∧ S' ^ fvar z = M0'' := ⟨ _, hbody z (by grind), rfl⟩
     cases hM0''.1
     · cases ‹Beta ( M0.app ( fvar z ) ) M0''›
       grind
@@ -109,12 +109,12 @@ theorem comm_base {M0 u : Term Var} (hM0 : LC M0)
         unfold open'
         rw [<- Term.open_close]
         grind
-      convert hS'_eq.symm using 1;
+      convert hS'_eq.symm
       grind
-    refine Or.inr ⟨ M0'', ?_, (by grind) ⟩;
-    rw [ hS' ];
-    convert Relation.ReflTransGen.single ( Xi.base ( Eta.eta _ ) ) using 1;
-    · rw [ hS'_eq, show closeRec 0 z M0'' = M0'' from ?_ ]
+    refine Or.inr ⟨ M0'', ?_, (by grind) ⟩
+    rw [ hS' ]
+    convert Relation.ReflTransGen.single ( Xi.base ( Eta.eta _ ) ) using 1
+    · rw [hS'_eq, show closeRec 0 z M0'' = M0'' from ?_]
       rw [close_fresh]
       obtain ⟨hM0'', _⟩ := hM0''
       apply FullBeta.step_not_fv at hM0''
@@ -131,28 +131,21 @@ theorem comm_appL {Z M N u : Term Var}
     (hZ : LC Z) (hxi : FullEta M N) (hbeta : FullBeta (app Z M) u) :
     u = app Z N ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta (app Z N) u' := by
   cases hbeta with
-  | base hbeta =>
+  | base hbeta => cases hbeta with | beta hZ hM =>
+    rename_i Z _
     right
-    cases hbeta
-    use ‹_› ^ N
-    constructor;
-    · apply FullEta.step_open_cong_r <;> grind
-    · exact Xi.base ( Beta.beta hZ (FullEta.step_lc_r hxi) );
+    exact ⟨Z ^ N, FullEta.step_open_cong_r hZ hM hxi, Xi.base (Beta.beta hZ (FullEta.step_lc_r hxi))⟩
   | appL _ _ =>
     rename_i M' hM' hbeta
-    generalize_proofs at *;
-    specialize ih M (by
-    exact Nat.lt_succ_of_le ( Nat.le_add_left _ _ )) N M' hxi hbeta
-    generalize_proofs at *;
-    rcases ih with ( rfl | ⟨ u', hu', hu'' ⟩ ) <;> [ exact Or.inl rfl; exact Or.inr ⟨ Z.app u', FullEta.redex_app_r_cong hu' hZ, Xi.appL hZ hu'' ⟩]
+    specialize ih M (Nat.lt_succ_of_le (Nat.le_add_left _ _ )) N M' hxi hbeta
+    rcases ih with rfl | ⟨ u', hu', hu''⟩
+    · grind
+    · exact Or.inr ⟨Z.app u', FullEta.redex_app_r_cong hu' hZ, Xi.appL hZ hu''⟩
   | appR _ _ =>
+    rename_i M' hM' hbeta
     right
-    exists Term.app ‹_› N;
-    constructor
-    · apply FullEta.redex_app_r_cong
-      · grind
-      · apply FullBeta.step_lc_r (by assumption)
-    · exact Xi.appR ( FullEta.step_lc_r hxi ) ‹_›
+    exact ⟨M'.app N, FullEta.redex_app_r_cong (by grind) (FullBeta.step_lc_r hM'),
+                     Xi.appR (FullEta.step_lc_r hxi) hM'⟩
 
 /-
 η-step in the operator of an application, `a = app M Z`, `M ⟶η N`
@@ -166,35 +159,25 @@ theorem comm_appR {Z M N u : Term Var}
   | base hbeta =>
     cases ‹_›
     cases hxi with
-    | base _ => cases ‹Eta _ _›
-                grind
+    | base hxi => grind
     | abs xs hxi =>
       rename_i M hM _ N
       right
-      exists N ^ Z
-      constructor
-      · refine FullEta.steps_open_cong_l xs ?_ hZ
-        grind
-      · apply Xi.base
-        refine Beta.beta ?_ hZ
-        have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-        specialize hxi x (by grind)
-        apply FullEta.step_lc_r at hxi
-        apply open_abs_lc hxi
-  | appL _ _ =>
-    rename_i N' hN' hbeta'
+      refine ⟨N ^ Z, FullEta.steps_open_cong_l xs (by grind) hZ, Xi.base (Beta.beta ?_ hZ)⟩
+      have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+      specialize hxi x (by grind)
+      apply FullEta.step_lc_r at hxi
+      apply open_abs_lc hxi
+  | appL hN' hbeta =>
+    rename_i N'
     right
-    exists N.app N'
-    constructor
-    · apply_rules [ Relation.ReflTransGen.single, Xi.appL ]
-      exact Xi.appR ( FullBeta.step_lc_r hbeta' ) hxi
-    · exact Xi.appL hxi.step_lc_r hbeta'
+    exact ⟨N.app N', .single (Xi.appR (FullBeta.step_lc_r hbeta) hxi), Xi.appL hxi.step_lc_r hbeta⟩
   | appR hZ' hM' =>
     rename_i M'
-    specialize ih M (Nat.lt_add_of_pos_right ( Nat.succ_pos _ ) ) N M' hxi hM'
-    rcases ih with ( rfl | ⟨ u', hu', hu'' ⟩ )
+    specialize ih M (Nat.lt_add_of_pos_right (Nat.succ_pos _)) N M' hxi hM'
+    rcases ih with rfl | ⟨ u', hu', hu'' ⟩
     · exact Or.inl rfl
-    · exact Or.inr ⟨ u'.app Z, FullEta.redex_app_l_cong hu' hZ, Xi.appR hZ hu'' ⟩
+    · exact Or.inr ⟨u'.app Z, FullEta.redex_app_l_cong hu' hZ, Xi.appR hZ hu''⟩
 
 /-
 Witness packaging for the abstraction case (clause 2 via closing).
@@ -203,12 +186,9 @@ theorem comm_exists_abs {N M w : Term Var} (z : Var)
     (hzN : z ∉ fv N) (hzM : z ∉ fv M)
     (heta : (M ^ fvar z) ↠ηᶠ w) (hbeta : FullBeta (N ^ fvar z) w) :
     ∃ u', M.abs ↠ηᶠ u' ∧ FullBeta N.abs u' := by
-  exists abs ( closeRec 0 z w )
-  constructor
+  refine ⟨(closeRec 0 z w).abs, ?_, ?_⟩
   · rw [open_close z M 0 hzM]
-    refine FullEta.steps_abs_close heta ?_
-    apply FullBeta.step_lc_r at hbeta
-    apply FullEta.steps_lc_l heta hbeta
+    exact FullEta.steps_abs_close heta (FullEta.steps_lc_l heta (FullBeta.step_lc_r hbeta))
   · apply Xi.abs ∅
     intros x hx
     have g := FullBeta.redex_subst_cong_lc _ _ (fvar x) z hbeta (by grind)
@@ -225,14 +205,13 @@ theorem comm_abs {M N u : Term Var} (xs : Finset Var)
     (ih : ∀ (M' : Term Var), size M' < size (abs M) → CommProp M')
     (hbody : ∀ x ∉ xs, FullEta (M ^ fvar x) (N ^ fvar x))
     (hbeta : FullBeta (abs M) u) :
-    u = abs N ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta (abs N) u' := by
+    u = N.abs ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta (abs N) u' := by
   obtain ⟨ ys, hbody' ⟩ := hbeta
   rename_i M' ys hbody'
   obtain ⟨ z, hz ⟩ := fresh_exists <| free_union [fv] Var
-  specialize ih ( M ^ fvar z ) ?_ ( N ^ fvar z ) ( M' ^ fvar z ) ?_ ?_ <;> simp_all +decide [ Term.size ]
-  rcases ih with ( h | ⟨ u', heta, hbeta ⟩ )
-  · left
-    apply open_injective _ _ _ _ _ h <;> grind
+  specialize ih (M ^ fvar z) (by simp) (N ^ fvar z) (M' ^ fvar z) (by grind) (by grind)
+  rcases ih with h | ⟨ u', heta, hbeta ⟩
+  · apply open_injective at h <;> grind
   · right
     exact comm_exists_abs z (by grind) (by grind) heta hbeta
 
@@ -242,19 +221,16 @@ term either coincide, or can be closed by a single β-step from `b` matched by
 theorem comm_prop (a : Term Var) : CommProp a := by
   have key : ∀ n (a : Term Var), size a = n → CommProp a := by
     intro n
-    induction n using Nat.strong_induction_on with
-    | _ n IH =>
-      intro a han b u he hbeta
-      have ih : ∀ (a' : Term Var), size a' < size a → CommProp a' := by
-        intro a' ha'
-        exact IH (size a') (han ▸ ha') a' rfl
-      cases he with
-      | base hb =>
-          cases hb with
-          | eta hM0 => exact comm_base hM0 hbeta
-      | appL hZ hxi => exact comm_appL ih hZ hxi hbeta
-      | appR hZ hxi => exact comm_appR ih hZ hxi hbeta
-      | abs xs hbody => exact comm_abs xs ih hbody hbeta
+    induction n using Nat.strong_induction_on with | _ n IH =>
+    intro a han b u he hbeta
+    have ih : ∀ (a' : Term Var), size a' < size a → CommProp a' := by
+      intro a' ha'
+      exact IH (size a') (han ▸ ha') a' rfl
+    cases he with
+    | base hb => cases hb with | eta hM0 => exact comm_base hM0 hbeta
+    | appL hZ hxi => exact comm_appL ih hZ hxi hbeta
+    | appR hZ hxi => exact comm_appR ih hZ hxi hbeta
+    | abs xs hbody => exact comm_abs xs ih hbody hbeta
   intro b u he hbeta
   exact key (size a) a rfl b u he hbeta
 
@@ -264,8 +240,9 @@ theorem comm_prop (a : Term Var) : CommProp a := by
 `u = b`, or there is `u'` with `u ⟶η* u'` and `b ⟶β u'`. -/
 theorem beta_eta_commute {a b u : Term Var}
     (heta : FullEta a b) (hbeta : FullBeta a u) :
-    u = b ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta b u' :=
-  comm_prop a b u heta hbeta
+    u = b ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta b u' := by
+  have := interaction a 1
+  sorry
 
 /-!
 # Commutation of *multi-step* η-reduction with a single β-step
