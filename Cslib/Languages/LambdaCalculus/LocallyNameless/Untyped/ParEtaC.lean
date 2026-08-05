@@ -82,6 +82,16 @@ theorem parEtaC_of_fullEta {t t' : Term Var} (h : FullEta t t') : ParEtaC 1 t t'
   | appR hLC _ hih => exact ParEtaC.app hih (ParEtaC.refl hLC)
   | abs k _ ih => exact ParEtaC.abs k ih
 
+theorem parEtaC_to_fullEta {t t' : Term Var} (h : ParEtaC 1 t t') : FullEta t t' := by
+  generalize hi: 1 = i
+  rw [hi] at h
+  induction h with
+  | fvar x => omega
+  | app _ _ _ _ => sorry
+  | abs xs _ _ => sorry
+  | eta _ _ _ => sorry
+
+
 theorem ParEtaC.step_lc_r {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC N := by
   induction h with
   | fvar x => exact LC.fvar x
