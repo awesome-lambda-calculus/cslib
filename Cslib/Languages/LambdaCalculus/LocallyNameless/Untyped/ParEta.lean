@@ -7,13 +7,9 @@ Authors: Yijun Leng
 
 module
 
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaConfluence
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.NormalBeta
-public import Cslib.Foundations.Relation.Confluence
 
 /-!
 # Parallel η-reduction and Takahashi's Lemma 3.7
@@ -170,157 +166,6 @@ form `N` has a β-normal form.
 @[simp, scoped grind =]
 def etaExp (M : Term Var) : Term Var := abs (app M (bvar 0))
 
-/-- The `k`-fold η-expansion of a locally closed term is locally closed. -/
-@[simp, scoped grind]
-theorem etaExp_lc [DecidableEq Var] [HasFresh Var]
-  {M : Term Var} (hM : LC M) (k : ℕ) : LC (etaExp^[k] M) := by
-  induction k with
-  | zero => exact hM
-  | succ k ih =>
-      rw [add_comm, Function.iterate_add]
-      apply LC.abs (∅ : Finset Var)
-      grind
-
-/-- The `k`-fold η-expansion η-reduces back to the original term. -/
-theorem etaExp_fullEtaStar [DecidableEq Var] [HasFresh Var]
-  {M : Term Var} (hM : LC M) (k : ℕ) :
-    (etaExp^[k] M) ↠ηᶠ M := by
-  induction k with
-  | zero => exact Relation.ReflTransGen.refl
-  | succ n ih =>  convert Relation.ReflTransGen.head ( Xi.base ( Eta.eta ( etaExp_lc hM n ) ) ) ih
-                  rw [add_comm, Function.iterate_add]
-                  simp
-
-/-! ## Collapse lemmas for η-expansion towers -/
-
-/-
-Congruence: β-reducing the base β-reduces the whole tower.
--/
-theorem etaExp_betaStar_congr [DecidableEq Var] [HasFresh Var]
-  {M M' : Term Var} (h : M ↠βᶠ M') (k : ℕ) :
-    (etaExp^[k] M) ↠βᶠ (etaExp^[k] M') := by
-  cases FullBeta.steps_lc_or_rfl h with
-  | inr => grind
-  | inl hM => induction k with
-  | zero => exact h
-  | succ k ih =>
-    rw [add_comm, Function.iterate_add]
-    apply FullBeta.redex_abs_cong ( ∅ : Finset Var )
-    intro x hx
-    convert FullBeta.redex_app_l_cong ih (LC.fvar x)
-    · grind [etaExp_lc hM.1 k]
-    · apply FullBeta.steps_lc_or_rfl at ih
-      grind [etaExp_lc]
-
-/-
-A tower of η-expansions over an **abstraction** β-collapses completely back
-to the abstraction (each created redex `(λx.C) z →β C[z]` undoes one layer).
--/
-theorem etaExp_abs_collapse [DecidableEq Var] [HasFresh Var]
-  {C : Term Var} (hC : LC (Term.abs C)) (k : ℕ) :
-    (etaExp^[k] C.abs) ↠βᶠ C.abs := by
-  have h_beta : FullBeta (abs (app C.abs (bvar 0))) C.abs := by
-    obtain ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-    apply Xi.abs { x }
-    intro y hy
-    convert Xi.base ( Beta.beta ( show LC ( abs C ) from hC ) ( show LC ( fvar y ) from LC.fvar y))
-    grind
-  induction k with
-  | zero =>  exact .refl
-  | succ k ih =>
-    have h_congr : ((etaExp^[k] C.abs).app (bvar 0)).abs ↠βᶠ (C.abs.app (bvar 0)).abs := by
-      apply FullBeta.redex_abs_cong ∅
-      intro x hx
-      convert FullBeta.redex_app_l_cong ih (LC.fvar x)
-      · apply FullBeta.steps_lc_or_rfl at ih
-        cases ih with grind
-      · grind
-    rw [add_comm, Function.iterate_add]
-    exact h_congr.tail h_beta
-
-/-
-When an η-expansion tower is **applied** to an argument, all layers
-β-collapse (linearly, no duplication): `(B)_k G ↠β B G`.
--/
-theorem etaExp_app_collapse [DecidableEq Var] [HasFresh Var]
-  {B G : Term Var} (hB : LC B) (hG : LC G) (k : ℕ) :
-    (app (etaExp^[k] B) G) ↠βᶠ (app B G) := by
-  induction k with
-  | zero => exact .refl
-  | succ k ih =>
-    refine Relation.ReflTransGen.head (Xi.base ?_) ih
-    rw [add_comm, Function.iterate_add, Function.iterate_one, Function.comp_apply]
-    simp only [etaExp]
-    convert Beta.beta ?_ hG
-    · grind
-    · apply LC.abs (∅ : Finset Var)
-      grind
-
-
-/-! ## Normal forms of η-expansion towers -/
-
-/-
-`(B)_1` of a NormalNotAbs base `B` is normal.
--/
-theorem Normal.etaExp_one [DecidableEq Var] [HasFresh Var]
-  {B : Term Var} (hne : NormalNotAbs B) :
-    Normal (etaExp B) := by
-  apply Normal.abs ∅
-  intro x hx
-  convert Normal.app hne.1 hne.2 ( Normal.fvar x )
-  grind [NormalNotAbs.lc hne]
-
-/-
-A tower of η-expansions over a **NormalNotAbs** base has a normal (β-nf) form:
-it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
--/
-theorem etaExp_NormalNotAbs_normalForm [DecidableEq Var] [HasFresh Var]
-  {B : Term Var} (hne : NormalNotAbs B) (k : ℕ) :
-    ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ Normal M := by
-  -- If k = 0, we can take M = B.
-  by_cases hk : k = 0
-  · exact ⟨ B, by subst hk; exact Relation.ReflTransGen.refl, hne.1 ⟩
-  · obtain ⟨ k, rfl ⟩ := Nat.exists_eq_succ_of_ne_zero hk
-    clear hk
-    exists (B.app (bvar 0)).abs
-    induction k with unfold etaExp
-    | zero => exact ⟨Relation.ReflTransGen.refl, Normal.etaExp_one hne⟩
-    | succ n h =>
-      constructor
-      · have heq : (n+1).succ = 1 +(n+1) := by omega
-        rw [heq, Function.iterate_add]
-        apply FullBeta.redex_abs_cong ∅
-        intros x hx
-        unfold open' openRec
-        apply NormalNotAbs.lc at hne
-        rw [open_lc _ _ B hne, open_lc]
-        apply etaExp_app_collapse <;> grind
-        apply etaExp_lc hne
-      · grind
-
-/-! ## Structure of a single parallel η-step (Takahashi's Lemma 3.2) -/
-
-/-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
-theorem parEta_etaExp [DecidableEq Var] [HasFresh Var]
-  {Y Z : Term Var} (h : ParEta Y Z) (k : ℕ) :
-    ParEta (etaExp^[k] Y) Z := by
-  induction k with
-  | zero => exact h
-  | succ k ih =>
-      rw [add_comm, Function.iterate_add]
-      exact ParEta.eta (etaExp_lc (ParEta.step_lc_l h) k) ih
-
-/-- Parallel β-reduction lifts through η-expansion towers. -/
-theorem parBeta_etaExp_congr [DecidableEq Var] [HasFresh Var]
-  {A A' : Term Var} (h : Parallel A A') (k : ℕ) :
-    Parallel (etaExp^[k] A) (etaExp^[k] A') := by
-  induction k with
-  | zero => exact h
-  | succ k ih =>
-      rw [add_comm, Function.iterate_add]
-      refine Parallel.abs (∅ : Finset Var) (fun x _ => ?_)
-      grind
-
 /-
 **Lemma 3.2 (variable case).**  A single parallel η-reduct that is a variable
 comes from a `k`-fold η-expansion of that variable.
@@ -372,7 +217,184 @@ theorem parEta_inv_abs {L A : Term Var} :
     rw [add_comm, Function.iterate_add]
     simp
 
-variable [DecidableEq Var] [HasFresh Var]
+variable [HasFresh Var]
+
+/-- The `k`-fold η-expansion of a locally closed term is locally closed. -/
+@[simp, scoped grind]
+theorem etaExp_lc {M : Term Var} (hM : LC M) (k : ℕ) : LC (etaExp^[k] M) := by
+  induction k with
+  | zero => exact hM
+  | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      apply LC.abs (∅ : Finset Var)
+      grind
+
+/-- The `k`-fold η-expansion η-reduces back to the original term. -/
+theorem etaExp_fullEtaStar
+  {M : Term Var} (hM : LC M) (k : ℕ) :
+    (etaExp^[k] M) ↠ηᶠ M := by
+  induction k with
+  | zero => exact Relation.ReflTransGen.refl
+  | succ n ih =>  convert Relation.ReflTransGen.head ( Xi.base ( Eta.eta ( etaExp_lc hM n ) ) ) ih
+                  rw [add_comm, Function.iterate_add]
+                  simp
+
+/-
+When an η-expansion tower is **applied** to an argument, all layers
+β-collapse (linearly, no duplication): `(B)_k G ↠β B G`.
+-/
+theorem etaExp_app_collapse
+  {B G : Term Var} (hB : LC B) (hG : LC G) (k : ℕ) :
+    (app (etaExp^[k] B) G) ↠βᶠ (app B G) := by
+  induction k with
+  | zero => exact .refl
+  | succ k ih =>
+    refine Relation.ReflTransGen.head (Xi.base ?_) ih
+    rw [add_comm, Function.iterate_add, Function.iterate_one, Function.comp_apply]
+    simp only [etaExp]
+    convert Beta.beta ?_ hG
+    · grind
+    · apply LC.abs (∅ : Finset Var)
+      grind
+
+
+/-
+`(B)_1` of a NormalNotAbs base `B` is normal.
+-/
+theorem Normal.etaExp_one
+  {B : Term Var} (hne : NormalNotAbs B) :
+    Normal (etaExp B) := by
+  apply Normal.abs ∅
+  intro x hx
+  convert Normal.app hne.1 hne.2 ( Normal.fvar x )
+  grind [NormalNotAbs.lc hne]
+
+/-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
+theorem parEta_etaExp
+  {Y Z : Term Var} (h : ParEta Y Z) (k : ℕ) :
+    ParEta (etaExp^[k] Y) Z := by
+  induction k with
+  | zero => exact h
+  | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      exact ParEta.eta (etaExp_lc (ParEta.step_lc_l h) k) ih
+
+/-
+Applying a `j`-fold η-expansion of an abstraction to an argument parallel
+β-reduces (in one step) to the contracted redex: `((λx.C)_j) Z ⟹β C'[Z']`.
+-/
+theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
+    (hbody : ∀ x ∉ xs, Parallel (C ^ fvar x) (C' ^ fvar x)) (hZ : Parallel Z Z')
+    (j : ℕ) :
+    Parallel (Term.app (etaExp^[j] (Term.abs C)) Z) (C' ^ Z') := by
+  induction j generalizing C C' Z Z' xs with
+  | zero => apply Parallel.beta xs hbody hZ
+  | succ j ih =>
+    have hCabs : C.abs.LC := by
+      have hLC : ∀ x ∉ xs, LC (C ^ fvar x) := by grind
+      apply LC.abs
+      exact hLC
+    rw [add_comm, Function.iterate_add]
+    apply Parallel.beta xs
+    · intro x hx
+      convert ih xs hbody ( Parallel.fvar x )
+      grind [etaExp_lc hCabs j]
+    · assumption
+
+
+variable [DecidableEq Var]
+
+/-! ## Collapse lemmas for η-expansion towers -/
+
+/-
+Congruence: β-reducing the base β-reduces the whole tower.
+-/
+theorem etaExp_betaStar_congr
+  {M M' : Term Var} (h : M ↠βᶠ M') (k : ℕ) :
+    (etaExp^[k] M) ↠βᶠ (etaExp^[k] M') := by
+  cases FullBeta.steps_lc_or_rfl h with
+  | inr => grind
+  | inl hM => induction k with
+  | zero => exact h
+  | succ k ih =>
+    rw [add_comm, Function.iterate_add]
+    apply FullBeta.redex_abs_cong ( ∅ : Finset Var )
+    intro x hx
+    convert FullBeta.redex_app_l_cong ih (LC.fvar x)
+    · grind [etaExp_lc hM.1 k]
+    · apply FullBeta.steps_lc_or_rfl at ih
+      grind [etaExp_lc]
+
+
+/-
+A tower of η-expansions over an **abstraction** β-collapses completely back
+to the abstraction (each created redex `(λx.C) z →β C[z]` undoes one layer).
+-/
+theorem etaExp_abs_collapse {C : Term Var} (hC : LC C.abs) (k : ℕ) :
+    (etaExp^[k] C.abs) ↠βᶠ C.abs := by
+  have h_beta : FullBeta (abs (app C.abs (bvar 0))) C.abs := by
+    obtain ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
+    apply Xi.abs { x }
+    intro y hy
+    convert Xi.base ( Beta.beta ( show LC C.abs from hC ) ( show LC ( fvar y ) from LC.fvar y))
+    grind
+  induction k with
+  | zero =>  exact .refl
+  | succ k ih =>
+    have h_congr : ((etaExp^[k] C.abs).app (bvar 0)).abs ↠βᶠ (C.abs.app (bvar 0)).abs := by
+      apply FullBeta.redex_abs_cong ∅
+      intro x hx
+      convert FullBeta.redex_app_l_cong ih (LC.fvar x)
+      · apply FullBeta.steps_lc_or_rfl at ih
+        cases ih with grind
+      · grind
+    rw [add_comm, Function.iterate_add]
+    exact h_congr.tail h_beta
+
+
+/-! ## Normal forms of η-expansion towers -/
+
+/-
+A tower of η-expansions over a **NormalNotAbs** base has a normal (β-nf) form:
+it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
+-/
+theorem etaExp_NormalNotAbs_normalForm
+  {B : Term Var} (hne : NormalNotAbs B) (k : ℕ) :
+    ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ Normal M := by
+  -- If k = 0, we can take M = B.
+  by_cases hk : k = 0
+  · exact ⟨ B, by subst hk; exact Relation.ReflTransGen.refl, hne.1 ⟩
+  · obtain ⟨ k, rfl ⟩ := Nat.exists_eq_succ_of_ne_zero hk
+    clear hk
+    exists (B.app (bvar 0)).abs
+    induction k with unfold etaExp
+    | zero => exact ⟨Relation.ReflTransGen.refl, Normal.etaExp_one hne⟩
+    | succ n h =>
+      constructor
+      · have heq : (n+1).succ = 1 +(n+1) := by omega
+        rw [heq, Function.iterate_add]
+        apply FullBeta.redex_abs_cong ∅
+        intros x hx
+        unfold open' openRec
+        apply NormalNotAbs.lc at hne
+        rw [open_lc _ _ B hne, open_lc]
+        apply etaExp_app_collapse <;> grind
+        apply etaExp_lc hne
+      · grind
+
+
+/-! ## Structure of a single parallel η-step (Takahashi's Lemma 3.2) -/
+
+/-- Parallel β-reduction lifts through η-expansion towers. -/
+theorem parBeta_etaExp_congr
+  {A A' : Term Var} (h : Parallel A A') (k : ℕ) :
+    Parallel (etaExp^[k] A) (etaExp^[k] A') := by
+  induction k with
+  | zero => exact h
+  | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      exact Parallel.abs (∅ : Finset Var) (fun _ _ => by grind)
+
 
 /-! ## The reconstruction (core of Lemma 3.6) -/
 
@@ -436,29 +458,6 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       rintro ⟨-, hc⟩
       exact absurd rfl (hc body)
 
-
-
-/-
-Applying a `j`-fold η-expansion of an abstraction to an argument parallel
-β-reduces (in one step) to the contracted redex: `((λx.C)_j) Z ⟹β C'[Z']`.
--/
-theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
-    (hbody : ∀ x ∉ xs, Parallel (C ^ fvar x) (C' ^ fvar x)) (hZ : Parallel Z Z')
-    (j : ℕ) :
-    Parallel (Term.app (etaExp^[j] (Term.abs C)) Z) (C' ^ Z') := by
-  induction j generalizing C C' Z Z' xs with
-  | zero => apply Parallel.beta xs hbody hZ
-  | succ j ih =>
-    have hCabs : C.abs.LC := by
-      have hLC : ∀ x ∉ xs, LC (C ^ fvar x) := by grind
-      apply LC.abs
-      exact hLC
-    rw [add_comm, Function.iterate_add]
-    apply Parallel.beta xs
-    · intro x hx
-      convert ih xs hbody ( Parallel.fvar x )
-      grind [etaExp_lc hCabs j]
-    · assumption
 
 /-! ## Parallel η/β postponement (Takahashi's Lemma 3.4) -/
 
