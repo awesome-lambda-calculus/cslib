@@ -174,17 +174,17 @@ theorem open_fvar_inj {A B : Term Var} {x : Var} (hA : x ∉ fv A) (hB : x ∉ f
 
 /-- The conclusion of the Interaction Lemma at a fixed source term `t`. -/
 def InteractionAt (t : Term Var) : Prop :=
-  ∀ {n : ℕ} {t' s : Term Var}, ParEtaC n t t' → FullBeta t s →
+  ∀ (n : ℕ) (t' s : Term Var), ParEtaC n t t' → FullBeta t s →
     (∃ s' m, ParEtaC m s s' ∧ FullBeta t' s') ∨ (∃ m, m < n ∧ ParEtaC m s t')
 
 /-- **The Interaction Lemma.** A single β-step `t ⟶β s` against a parallel
 η-derivation `t ⟹η t'` either reflects to a genuine β-step `t' ⟶β s'` (with `s`
 still parallel-η-reducing to `s'`), or is absorbed — landing back on `t'` with a
 strictly smaller η-count. -/
-theorem interaction {t : Term Var} : InteractionAt t := by
+theorem interaction (t : Term Var) : InteractionAt t := by
   induction heq : t.size using Nat.strong_induction_on generalizing t with | h n IH' =>
   have IH : ∀ t : Term Var, t.size < n → t.InteractionAt := fun t h =>
-    IH' _ (Nat.lt_of_lt_of_eq (by omega) (by rfl)) rfl
+    IH' _ (Nat.lt_of_lt_of_eq (by omega) (by rfl)) _ rfl
   clear IH'
   subst n
   intro n t' s hp hb
@@ -209,13 +209,13 @@ theorem interaction {t : Term Var} : InteractionAt t := by
   | @appL Z M0 N0 hZ hstep =>
     cases hp with
     | @app a b _ Z' _ M0' hZ' hM0 =>
-      rcases IH M0 (by grind) hM0 hstep with ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
+      rcases IH M0 (by grind) _ _ _ hM0 hstep with ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · exact Or.inl ⟨_, a + m, ParEtaC.app hZ' hpar, Xi.appL (ParEtaC.step_lc_r hZ') hbeta⟩
       · exact Or.inr ⟨a + m, by omega, ParEtaC.app hZ' hpar⟩
   | @appR Z M0 N0 hZ hstep =>
     cases hp with
     | @app a b M0' _ _ Z' hM0 hZ' =>
-      rcases IH M0 (by grind) hM0 hstep with ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
+      rcases IH M0 (by grind) _ _ _ hM0 hstep with ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · exact Or.inl ⟨_, m + b, ParEtaC.app hpar hZ', Xi.appR (ParEtaC.step_lc_r hZ') hbeta⟩
       · exact Or.inr ⟨m + b, by omega, ParEtaC.app hpar hZ'⟩
   | @abs M0 N0 xs hbodystep =>
@@ -225,7 +225,7 @@ theorem interaction {t : Term Var} : InteractionAt t := by
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
       have hsz : size (M0 ^ Term.fvar x) < size (Term.abs M0) := by
         rw [size_open_fvar]; have : size (Term.abs M0) = size M0 + 1 := rfl; omega
-      rcases IH (M0 ^ Term.fvar x) hsz (hbody x (by grind)) (hbodystep x (by grind)) with
+      rcases IH (M0 ^ Term.fvar x) hsz _ _ _ (hbody x (by grind)) (hbodystep x (by grind)) with
         ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · refine Or.inl ⟨Term.abs (closeRec 0 x s''), m, ParEtaC.abs_of_open x ?_ ?_ ?_, ?_⟩
         · grind
@@ -257,7 +257,7 @@ theorem interaction {t : Term Var} : InteractionAt t := by
         have hPsLC : LC N := FullBeta.step_lc_r hxi
         have hxN : x ∉ fv N := by grind [FullBeta.step_not_fv hxi]
         have hNe : N0 = Term.app N (Term.bvar 0) := by apply @open_fvar_inj _ _ _ _ x <;> grind
-        rcases IH P (by grind) hPF hxi with ⟨s', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
+        rcases IH P (by grind) _ _ _ hPF hxi with ⟨s', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
         · exact Or.inl ⟨s', m + 1, by rw [hNe]; exact ParEtaC.eta hPsLC hpar, hbeta⟩
         · exact Or.inr ⟨m + 1, by omega, by rw [hNe]; exact ParEtaC.eta hPsLC hpar⟩
 
@@ -272,7 +272,7 @@ theorem sn_transfer {t t' : Term Var}
     induction n using Nat.strong_induction_on generalizing t with
     | _ n ihn =>
       refine Acc.intro t (fun s hs => ?_)
-      rcases interaction hp hs with ⟨s', m, hps', hb'⟩ | ⟨m, hm, hps⟩
+      rcases interaction _ _ _ _ hp hs with ⟨s', m, hps', hb'⟩ | ⟨m, hm, hps⟩
       · exact ih s' hb' hps'
       · exact ihn m hm hps
 
