@@ -74,6 +74,18 @@ theorem ParEtaC.refl {M : Term Var} (h : LC M) : ParEtaC 0 M M := by
       simp +arith [Term.size] at n
       exact ParEtaC.abs xs (fun x hx => ih _ (by rw [size_open_fvar]; linarith) (ht x hx) rfl)
 
+theorem ParEtaC.refl_rev [DecidableEq Var] [HasFresh Var]
+    {M N : Term Var} (h : ParEtaC 0 M N) : M = N := by
+  generalize hi: 0 = i
+  rw [hi] at h
+  induction h with
+  | fvar x => grind
+  | app _ _ _ _ => grind
+  | eta _ _ _ => grind
+  | abs xs _ ih =>  have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+                    specialize ih x (by grind) hi
+                    apply open_injective at ih <;> grind
+
 /-- **Fact 2.1.** A single full η-step is a parallel η-derivation of count `1`. -/
 theorem parEtaC_of_fullEta {t t' : Term Var} (h : FullEta t t') : ParEtaC 1 t t' := by
   induction h with
@@ -82,16 +94,7 @@ theorem parEtaC_of_fullEta {t t' : Term Var} (h : FullEta t t') : ParEtaC 1 t t'
   | appR hLC _ hih => exact ParEtaC.app hih (ParEtaC.refl hLC)
   | abs k _ ih => exact ParEtaC.abs k ih
 
-theorem parEtaC_to_fullEta {t t' : Term Var} (h : ParEtaC 1 t t') : FullEta t t' := by
-  generalize hi: 1 = i
-  rw [hi] at h
-  induction h with
-  | fvar x => omega
-  | app _ _ _ _ => sorry
-  | abs xs _ _ => sorry
-  | eta _ _ _ => sorry
-
-
+@[scoped grind →]
 theorem ParEtaC.step_lc_r {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC N := by
   induction h with
   | fvar x => exact LC.fvar x
@@ -101,6 +104,7 @@ theorem ParEtaC.step_lc_r {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC N 
 
 variable [HasFresh Var]
 
+@[scoped grind →]
 theorem ParEtaC.step_lc_l {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC M := by
   induction h with
   | fvar x => exact LC.fvar x
@@ -111,6 +115,32 @@ theorem ParEtaC.step_lc_l {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC M 
       apply LC.app <;> grind
 
 variable [DecidableEq Var]
+
+theorem parEtaC_to_fullEta {t t' : Term Var}
+  (h : ParEtaC 1 t t') : FullEta t t' := by
+  generalize hi: 1 = i
+  rw [hi] at h
+  induction h with
+  | fvar x => omega
+  | abs xs _ _ => exact Xi.abs xs (by grind)
+  | app ha hb iha ihb =>
+    rename_i a b _ _ _ _
+    have hab : (a = 0 /\ b = 1) \/ (a = 1 /\ b = 0) := by omega
+    rcases hab with ⟨ha, hb⟩|⟨ha, hb⟩
+    all_goals subst_vars
+    · have := ParEtaC.refl_rev ha
+      subst_vars
+      apply Xi.appL
+      · apply ParEtaC.step_lc_r ha
+      · grind
+    · have := ParEtaC.refl_rev hb
+      subst_vars
+      apply Xi.appR
+      · apply ParEtaC.step_lc_r hb
+      · grind
+  | eta hlc h ih => cases hi
+                    apply ParEtaC.refl_rev at h
+                    grind
 
 /-- **Renaming preserves the count.** Substituting one free variable for another
 in a `ParEtaC` derivation preserves the derivation and its count. -/
@@ -180,6 +210,19 @@ theorem open_fvar_inj {A B : Term Var} {x : Var} (hA : x ∉ fv A) (hB : x ∉ f
   have hcl : (A ^ Term.fvar x) ^* x = (B ^ Term.fvar x) ^* x := by rw [h]
   rw [<- open_close_var, <- open_close_var] at hcl
   all_goals grind
+
+theorem ParEtaC.toFullEtaStar {i : Nat} {M N : Term Var} (h : ParEtaC i M N) : M ↠ηᶠ N := by
+  induction h with
+  | eta hM hMM' ih => exact .head (Xi.base (.eta hM)) ih
+  | fvar x => exact Relation.ReflTransGen.refl
+  | app hM hN ihM ihN =>
+      exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEtaC.step_lc_l hN)))
+                                        (FullEta.redex_app_r_cong ihN ((ParEtaC.step_lc_r hM)))
+  | abs xs h ih =>  apply FullEta.redex_abs_cong xs ih
+                    have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+                    specialize h x (by grind)
+                    apply ParEtaC.step_lc_l at h
+                    apply open_abs_lc h
 
 
 /-- The conclusion of the Interaction Lemma at a fixed source term `t`. -/

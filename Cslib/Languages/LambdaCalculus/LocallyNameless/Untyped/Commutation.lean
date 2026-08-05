@@ -234,15 +234,19 @@ theorem comm_prop (a : Term Var) : CommProp a := by
   intro b u he hbeta
   exact key (size a) a rfl b u he hbeta
 
-/- TODO: abandoned: stronglyCommute_eta_beta
--/
 /-- **Commutation lemma** (final form): if `a ⟶η b` and `a ⟶β u` then either
 `u = b`, or there is `u'` with `u ⟶η* u'` and `b ⟶β u'`. -/
 theorem beta_eta_commute {a b u : Term Var}
     (heta : FullEta a b) (hbeta : FullBeta a u) :
     u = b ∨ ∃ u', u ↠ηᶠ u' ∧ FullBeta b u' := by
-  have := interaction a 1
-  sorry
+  rcases interaction a 1 _ _ (parEtaC_of_fullEta heta) hbeta with ⟨u', m, h, _⟩|⟨m, _, h⟩
+  · apply ParEtaC.toFullEtaStar at h
+    grind
+  · have : m = 0 := by omega
+    subst m
+    left
+    apply ParEtaC.refl_rev h
+
 
 /-!
 # Commutation of *multi-step* η-reduction with a single β-step

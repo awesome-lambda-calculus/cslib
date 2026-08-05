@@ -99,25 +99,15 @@ theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
   {M N : Term Var} (h : ParEta M N) : M ↠ηᶠ N := by
   induction h with
   | fvar x => exact Relation.ReflTransGen.refl
+  | eta hM hMM' ih => exact .head (Xi.base (.eta hM)) ih
   | @app M M' N N' hM hN ihM ihN =>
       exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEta.step_lc_l hN)))
-                                        (FullEta.redex_app_r_cong ihN ( (ParEta.step_lc_r hM)))
+                                        (FullEta.redex_app_r_cong ihN ((ParEta.step_lc_r hM)))
   | abs xs h ih =>  apply FullEta.redex_abs_cong xs ih
                     have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
                     specialize h x (by grind)
                     apply ParEta.step_lc_l at h
                     apply open_abs_lc h
-  | @eta M M' hM hMM' ih =>
-      -- `λz.(M z) →η* λz.(M' z) →η M'`
-  have hM' : LC M' := (ParEta.step_lc_r hMM')
-  have step1 : (Term.abs (Term.app M (Term.bvar 0))) ↠ηᶠ (Term.app M' (Term.bvar 0)).abs := by
-    apply FullEta.redex_abs_cong (∅ : Finset Var)
-    · intros x hx
-      apply FullEta.redex_app_l_cong <;> grind
-    · apply LC.abs ∅
-      intro x hx
-      grind
-  exact step1.tail (Xi.base (Eta.eta hM'))
 
 theorem paraEtachain_iff_redex [DecidableEq Var] [HasFresh Var]
   {M N : Term Var} : Relation.ReflTransGen ParEta M N ↔ M ↠ηᶠ N := by
