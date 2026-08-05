@@ -90,9 +90,7 @@ theorem ParEta.step_lc_l [HasFresh Var]
   | fvar x => exact LC.fvar x
   | app _ _ ihM ihN => exact LC.app ihM ihN
   | abs xs _ ih => exact LC.abs xs _ fun x hx => (ih x hx)
-  | @eta M M' hM _ ih =>
-      refine LC.abs (∅ : Finset Var) _ fun x _ => LC.app ?_ ?_
-      all_goals grind
+  | @eta M M' hM _ ih => exact LC.abs ∅ _ fun x _ => LC.app (by grind) (by grind)
 
 /-- A single parallel η-step is a sequence of full η-steps. -/
 theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
@@ -124,8 +122,7 @@ theorem ParEta.subst_par [DecidableEq Var] [HasFresh Var] {A A' B B' : Term Var}
   induction hA generalizing B B' with
   | fvar x => grind
   | app _ _ _ _ => exact ParEta.app (by grind) (by grind)
-  | abs xs h ih => exact ParEta.abs (xs ∪ { z }) fun x hx => by
-                      grind
+  | abs xs h ih => exact ParEta.abs (xs ∪ { z }) fun x hx => by grind
   | eta hM hMM' ih => exact ParEta.eta (Term.subst_lc hM hB.step_lc_l) (ih hB)
 
 /-
@@ -320,9 +317,9 @@ theorem etaExp_betaStar_congr
 A tower of η-expansions over an **abstraction** β-collapses completely back
 to the abstraction (each created redex `(λx.C) z →β C[z]` undoes one layer).
 -/
-theorem etaExp_abs_collapse {C : Term Var} (hC : LC C.abs) (k : ℕ) :
+theorem etaExp_abs_collapse {C : Term Var} (hC : C.abs.LC) (k : ℕ) :
     (etaExp^[k] C.abs) ↠βᶠ C.abs := by
-  have h_beta : FullBeta (abs (app C.abs (bvar 0))) C.abs := by
+  have h_beta : FullBeta (C.abs.app (bvar 0)).abs C.abs := by
     obtain ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
     apply Xi.abs { x }
     intro y hy
@@ -355,22 +352,20 @@ theorem etaExp_NormalNotAbs_normalForm
   by_cases hk : k = 0
   · exact ⟨ B, by subst hk; exact Relation.ReflTransGen.refl, hne.1 ⟩
   · obtain ⟨ k, rfl ⟩ := Nat.exists_eq_succ_of_ne_zero hk
-    clear hk
     exists (B.app (bvar 0)).abs
     induction k with unfold etaExp
     | zero => exact ⟨Relation.ReflTransGen.refl, Normal.etaExp_one hne⟩
     | succ n h =>
-      constructor
-      · have heq : (n+1).succ = 1 +(n+1) := by omega
-        rw [heq, Function.iterate_add]
-        apply FullBeta.redex_abs_cong ∅
-        intros x hx
-        unfold open' openRec
-        apply NormalNotAbs.lc at hne
-        rw [open_lc _ _ B hne, open_lc]
-        apply etaExp_app_collapse <;> grind
-        apply etaExp_lc hne
-      · grind
+      refine ⟨?_, by grind⟩
+      have heq : (n+1).succ = 1 +(n+1) := by omega
+      rw [heq, Function.iterate_add]
+      apply FullBeta.redex_abs_cong ∅
+      intros x hx
+      unfold open' openRec
+      apply NormalNotAbs.lc at hne
+      rw [open_lc _ _ B hne, open_lc]
+      apply etaExp_app_collapse <;> grind
+      apply etaExp_lc hne
 
 
 /-! ## Structure of a single parallel η-step (Takahashi's Lemma 3.2) -/
@@ -432,7 +427,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
               rw [close_openRec_to_subst] <;> grind
         rw [e1, e2]
         exact FullBeta.redex_subst_cong_ls _ _ _ _ hC0red (LC.fvar x)
-      have hDnormal : Normal (Term.abs D) := by
+      have hDnormal : Normal D.abs := by
         refine Normal.abs (∅ : Finset Var) (fun x _ => ?_)
         have e2 : D ^ fvar x = C0[x0 := fvar x] :=
           by  rw [hDdef]
@@ -440,7 +435,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
               rw [close_openRec_to_subst] <;> grind
         rw [e2]
         exact Normal.subst_fvar hC0norm x0 x
-      have hDabs : (Term.abs body') ↠βᶠ (Term.abs D) :=
+      have hDabs : (Term.abs body') ↠βᶠ D.abs :=
         FullBeta.redex_abs_cong (∅ : Finset Var) (fun x _ => hDred x)
       refine ⟨⟨Term.abs D,
         (etaExp_betaStar_congr hDabs j).trans
