@@ -41,12 +41,13 @@ function position must not be an abstraction (otherwise there is a β-redex). -/
 inductive Normal : Term Var → Prop where
   | fvar (x : Var) : Normal (fvar x)
   | app {M N : Term Var} :
-      Normal M → (∀ C, M ≠ Term.abs C) → Normal N → Normal (app M N)
+      Normal M → ¬ M.IsAbs  → Normal N → Normal (app M N)
   | abs (xs : Finset Var) {M : Term Var} :
       (∀ x ∉ xs, Normal (M ^ fvar x)) → Normal (Term.abs M)
 
 /-- A **NormalNotAbs** term is a normal term that is not an abstraction (a
 variable-headed application spine). -/
+@[scoped grind]
 def NormalNotAbs (M : Term Var) : Prop := Normal M ∧ ∀ C, M ≠ Term.abs C
 
 theorem NormalNotAbs.fvar (x : Var) : NormalNotAbs (Term.fvar x : Term Var) :=
@@ -54,7 +55,7 @@ theorem NormalNotAbs.fvar (x : Var) : NormalNotAbs (Term.fvar x : Term Var) :=
 
 theorem NormalNotAbs.app {M N : Term Var} (hM : NormalNotAbs M) (hN : Normal N) :
     NormalNotAbs (Term.app M N) :=
-  ⟨Normal.app hM.1 hM.2 hN, by rintro C ⟨⟩⟩
+  ⟨Normal.app hM.1 (by grind) hN, by rintro C ⟨⟩⟩
 
 theorem NormalNotAbs.normal {M : Term Var} (h : NormalNotAbs M) : Normal M := h.1
 
@@ -108,7 +109,7 @@ theorem Normal.subst_fvar {M : Term Var} (h : Normal M) (x y : Var) :
   | app _ h₁ h₂ h₃ h₄ =>
     convert Normal.app h₃ _ h₄
     · rw [Term.subst_app]
-    · intro C hC
+    · intro hC
       rename_i M _ _
       cases M with
       | fvar _ => rw [Term.subst_fvar] at hC
@@ -152,8 +153,8 @@ theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta 
       obtain ⟨ _, hu⟩ := hu
       apply h
       refine ⟨ _, Xi.appR (by assumption) hu⟩
-    · intros C hC
-      subst_vars
+    · intros hC
+      cases hC
       apply h
       refine ⟨ _, Xi.base (Beta.beta (by assumption) (by assumption) )⟩
     · apply hM
