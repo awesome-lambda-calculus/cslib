@@ -253,7 +253,7 @@ theorem Normal.etaExp_one
     Normal (etaExp B) := by
   apply Normal.abs ∅
   intro x hx
-  convert Normal.app hne.1 hne.2 ( Normal.fvar x )
+  convert Normal.app hne.1 (by grind) ( Normal.fvar x )
   grind [NormalNotAbs.lc hne]
 
 /-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
@@ -399,7 +399,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       intro L hL
       obtain ⟨j, M', N', rfl, hM', hN'⟩ := parEta_inv_app hL
       have lcN' : LC N' := (ParEta.step_lc_l hN')
-      obtain ⟨k1, B1, hB1red, hB1neu⟩ := (ihM M' hM').2 ⟨hM, hMne⟩
+      obtain ⟨k1, B1, hB1red, hB1neu⟩ := (ihM M' hM').2 ⟨hM, (by grind)⟩
       obtain ⟨Nhat, hNred, hNnorm⟩ := (ihN N' hN').1
       have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
         (FullBeta.redex_app_l_cong hB1red lcN').trans
