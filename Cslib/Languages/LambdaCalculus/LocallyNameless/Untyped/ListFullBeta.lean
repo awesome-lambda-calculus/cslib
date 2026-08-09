@@ -67,11 +67,19 @@ lemma steps_multiApp_r (steps : Ns ↠lβᶠ Ns') (lc_M : LC M) :
   Ns.foldl app M ↠βᶠ Ns'.foldl app M := by
   induction steps <;> grind
 
-lemma listFullBeta_cons_r (h : Ns ⭢lβᶠ Ns') (h_lc : ∀ M ∈ l, LC M) : (l ++ Ns) ⭢lβᶠ (l ++ Ns') := by
+lemma listFullBeta_concat_r (h : Ns ⭢lβᶠ Ns') (h_lc : ∀ M ∈ l, LC M) : (l ++ Ns) ⭢lβᶠ (l ++ Ns') := by
   induction l using List.reverseRecOn generalizing Ns Ns' with grind
 
-lemma listFullBeta_cons_l (h : Ns ⭢lβᶠ Ns') (h_lc : ∀ M ∈ l, LC M) : (Ns ++ l) ⭢lβᶠ (Ns' ++ l) := by
+lemma listFullBeta_concat_l (h : Ns ⭢lβᶠ Ns') (h_lc : ∀ M ∈ l, LC M) : (Ns ++ l) ⭢lβᶠ (Ns' ++ l) := by
   induction h with grind
+
+lemma listFullBeta_cons_r (h : Ns ↠lβᶠ Ns') (h_lc : LC M) : (M :: Ns) ↠lβᶠ (M :: Ns') := by
+  induction h with grind
+
+lemma listFullBeta_cons_l (h : M ↠βᶠ M') (h_lc : ∀ M ∈ Ns, LC M) : (M :: Ns) ↠lβᶠ (M' :: Ns) := by
+  induction h with
+  | refl => grind
+  | tail _ h ih => exact .tail ih (.step h h_lc)
 
 set_option linter.tacticAnalysis.verifyGrindOnly false in
 /-- If a term (λ M) N P_1 ... P_n reduces in a single step to Q, then
@@ -101,10 +109,10 @@ lemma invert_abs_multiApp_st {Ps} {M N Q : Term Var}
     rw [List.foldl_concat] at h_red
     cases h_red with
     | @appL _ _ P' _ P_P' =>
-      have : (Ps ++ [P]) ⭢lβᶠ Ps ++ [P'] := by apply listFullBeta_cons_r (.step P_P' ?_) <;> grind
+      have : (Ps ++ [P]) ⭢lβᶠ Ps ++ [P'] := by apply listFullBeta_concat_r (.step P_P' ?_) <;> grind
       grind
     | appR _ h =>
-      have {Ps'} (h : Ps ⭢lβᶠ Ps') : (Ps ++ [P]) ⭢lβᶠ Ps' ++ [P] := listFullBeta_cons_l h (by grind)
+      have {Ps'} (h : Ps ⭢lβᶠ Ps') : (Ps ++ [P]) ⭢lβᶠ Ps' ++ [P] := listFullBeta_concat_l h (by grind)
       grind
     | base => induction Ps using List.reverseRecOn with grind
 
