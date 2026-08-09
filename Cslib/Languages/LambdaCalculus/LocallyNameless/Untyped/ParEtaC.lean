@@ -218,11 +218,7 @@ theorem ParEtaC.toFullEtaStar {i : Nat} {M N : Term Var} (h : ParEtaC i M N) : M
   | app hM hN ihM ihN =>
       exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEtaC.step_lc_l hN)))
                                         (FullEta.redex_app_r_cong ihN ((ParEtaC.step_lc_r hM)))
-  | abs xs h ih =>  apply FullEta.redex_abs_cong xs ih
-                    have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-                    specialize h x (by grind)
-                    apply ParEtaC.step_lc_l at h
-                    apply open_abs_lc h
+  | abs xs h ih => exact FullEta.redex_abs_cong xs ih
 
 
 /-- The conclusion of the Interaction Lemma at a fixed source term `t`. -/
