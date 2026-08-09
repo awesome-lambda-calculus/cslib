@@ -101,11 +101,7 @@ theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
   | @app M M' N N' hM hN ihM ihN =>
       exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEta.step_lc_l hN)))
                                         (FullEta.redex_app_r_cong ihN ((ParEta.step_lc_r hM)))
-  | abs xs h ih =>  apply FullEta.redex_abs_cong xs ih
-                    have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-                    specialize h x (by grind)
-                    apply ParEta.step_lc_l at h
-                    apply open_abs_lc h
+  | abs xs h ih => exact FullEta.redex_abs_cong xs ih
 
 theorem paraEtachain_iff_redex [DecidableEq Var] [HasFresh Var]
   {M N : Term Var} : Relation.ReflTransGen ParEta M N ↔ M ↠ηᶠ N := by
@@ -546,12 +542,12 @@ theorem parEta_hasBetaNF {P Q : Term Var}
                           | inr hQN =>  subst Q
                                         apply ParEta.step_lc_r at h
                                         grind
-  rw [<- parachain_iff_redex] at hQN
+  simp [<- reflTransGen_parallel_fullBeta] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
   obtain ⟨P', hPP', hP'N⟩ := postpone_a parEta_parBeta_postpone h hQN
   -- The η-expansion `P' ⟹η N` of the normal form `N` has a β-normal form.
   obtain ⟨M, hP'M, hMnorm⟩ := (core_par (betaNF_normal hNlc hN) P' hP'N).1
-  rw [parachain_iff_redex] at hPP'
+  simp [reflTransGen_parallel_fullBeta] at hPP'
   apply  Normal.betaNF at hMnorm
   exact ⟨M, .trans hPP' hP'M, hMnorm⟩
 
