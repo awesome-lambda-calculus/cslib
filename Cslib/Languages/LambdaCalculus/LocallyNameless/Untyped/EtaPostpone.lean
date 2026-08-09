@@ -42,7 +42,7 @@ theorem WeakPostpone_fullBeta_fullEta :
     induction hyz generalizing x with
     | base hyz => cases hyz with | beta h1 h2 => cases hxy with
       | appL h h4 => exact ⟨_, .single (.base (.beta h1 (FullEta.step_lc_l h4))),
-                                FullEta.step_open_cong_r h (FullEta.step_lc_l h4) h4⟩
+                                FullEta.step_open_cong_r h h4⟩
       | base hxy => cases hxy with | eta hxy =>
           rename_i M N
           have hmn : (M ^ N).LC := by grind
@@ -95,8 +95,7 @@ theorem WeakPostpone_fullBeta_fullEta :
           · cases hw1 <;> apply FullBeta.step_lc_r <;> assumption
           · grind
         · rw [open_close_var x M' (by grind)]
-          apply FullEta.steps_abs_close hw2
-          grind
+          exact FullEta.steps_abs_close hw2
     | appL _ h ih => cases hxy with
       | appL h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
                       exact ⟨_, FullBeta.transgen_app_r h1 hw1, FullEta.redex_app_r_cong hw2 h1⟩
@@ -134,10 +133,11 @@ theorem localpostpone_fullBeta_fullEta :
   LocalPostpone (Relation.ReflTransGen (FullBeta (Var := Var))) (Relation.ReflTransGen FullEta) :=
   by
     intros _ _ _ heta hbeta
-    rw [<- parachain_iff_redex] at hbeta
+    simp [<- reflTransGen_parallel_fullBeta] at hbeta
     rw [<- paraEtachain_iff_redex] at heta
-    have := postpone_ab parEta_parBeta_postpone heta hbeta
-    grind [parachain_iff_redex, paraEtachain_iff_redex]
+    obtain ⟨s, _, _⟩ := postpone_ab parEta_parBeta_postpone heta hbeta
+    use s
+    simp_all [<- reflTransGen_parallel_fullBeta, <- paraEtachain_iff_redex]
 
 theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
     ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
@@ -177,7 +177,7 @@ theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
   constructor
   · intros hbeta
     obtain ⟨y, hy, hbeta⟩ := hbeta
-    obtain ⟨z, hz, hnormal⟩:= Relation.SN.to_WN (FullEta.wellFoundedFullEta.apply y)
+    obtain ⟨z, hz, hnormal⟩:= Relation.SN.normalizable (FullEta.wellFoundedFullEta.apply y)
     refine ⟨z, .trans (FullBetaEta.from_beta hy) (FullBetaEta.from_eta hz), ?_⟩
     have := Etastar_normal hz hbeta
     intros h
