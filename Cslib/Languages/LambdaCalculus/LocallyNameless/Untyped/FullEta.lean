@@ -54,8 +54,8 @@ lemma step_lc_l [HasFresh Var] (step : M ⭢ηᶠ M') : LC M := by
   | appR lc_Z _ ih => exact LC.app ih lc_Z
   | @abs M' _ xs _ ih => exact LC.abs xs M' ih
 
-lemma steps_lc_l [HasFresh Var] (step : M ↠ηᶠ M') (h : LC M') : LC M := by
-  induction step with grind
+lemma steps_lc_or_rfl [HasFresh Var] {M M' : Term Var} (redex : M ↠ηᶠ M') :
+  (LC M ∧ LC M') ∨ M = M' := by grind
 
 /-- Left congruence rule for application in multiple reduction. -/
 theorem redex_app_l_cong (redex : M ↠ηᶠ M') (lc_N : LC N) : app M N ↠ηᶠ app M' N := by
