@@ -74,9 +74,13 @@ lemma steps_fv [HasFresh Var] [DecidableEq Var] (steps : M ↠βηᶠ N) : N.fv 
     | inl h => grind [FullBeta.step_not_fv h]
     | inr h => grind [FullEta.step_not_fv h]
 
-theorem from_beta (redex : M ↠βᶠ M') :  M ↠βηᶠ M' := by grind
+lemma from_beta : ((· ↠βᶠ ·) : Term Var → Term Var → Prop) ≤ (· ↠βηᶠ  ·) := by
+  intros M N hm
+  grind
 
-theorem from_eta (redex : M ↠ηᶠ M') :  M ↠βηᶠ M' := by grind
+lemma from_eta : ((· ↠ηᶠ ·) : Term Var → Term Var → Prop) ≤ (· ↠βηᶠ  ·) := by
+  intros M N hm
+  grind
 
 theorem normal_fullbeta_iff :
   Relation.Normal FullBetaEta M ↔ Relation.Normal FullBeta M /\ Relation.Normal FullEta M := by
