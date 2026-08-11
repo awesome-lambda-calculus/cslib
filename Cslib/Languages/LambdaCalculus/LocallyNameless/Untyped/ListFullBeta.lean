@@ -47,14 +47,30 @@ lemma multiApp_lc : LC (Ns.foldl app M) ↔ LC M ∧ (∀ N ∈ Ns, LC N) := by
 /-- Just like ordinary beta reduction, the left-hand side
     of a multi-application step is locally closed -/
 @[scoped grind ←]
-lemma step_multiApp_l (steps : M ⭢βᶠ M') (lc_Ns : ∀ N ∈ Ns, LC N) :
-    Ns.foldl app M ⭢βᶠ Ns.foldl app M' := by
+lemma step_multiApp_l {R} (step : Xi R M M') (lc_Ns : ∀ N ∈ Ns, LC N) :
+    Xi R (Ns.foldl app M) (Ns.foldl app M') := by
   induction Ns generalizing M M' with grind
 
 /-- Congruence lemma for multi reduction of the left most term of a multi-application -/
-lemma steps_multiApp_l (steps : M ↠βᶠ M') (lc_Ns : ∀ N ∈ Ns, LC N) :
-    Ns.foldl app M ↠βᶠ Ns.foldl app M' := by
+lemma steps_multiApp_l {R} (steps : Relation.ReflTransGen (Xi R) M M') (lc_Ns : ∀ N ∈ Ns, LC N) :
+  Relation.ReflTransGen (Xi R) (Ns.foldl app M) (Ns.foldl app M') := by
   induction steps <;> grind
+
+lemma step_multiApp_l_union {R1 R2} (step : (Xi R1 ⊔ Xi R2) M M') (lc_Ns : ∀ N ∈ Ns, LC N) :
+   (Xi R1 ⊔ Xi R2) (Ns.foldl app M) (Ns.foldl app M') := by
+  induction Ns generalizing M M' with
+  | nil => grind
+  | cons head tail ih =>
+      apply ih ?_ (by grind)
+      cases step with
+        | inl h =>  left; grind
+        | inr h =>  right; grind
+
+lemma steps_multiApp_l_union {R1 R2}
+  (steps : Relation.ReflTransGen (Xi R1 ⊔ Xi R2) M M')
+  (lc_Ns : ∀ N ∈ Ns, LC N) :
+   Relation.ReflTransGen (Xi R1 ⊔ Xi R2) (Ns.foldl app M) (Ns.foldl app M') := by
+  induction steps <;> grind [step_multiApp_l_union]
 
 /-- Congruence lemma for single reduction of one of the arguments of a multi-application -/
 @[scoped grind ←]
