@@ -52,27 +52,12 @@ theorem step_app_r_cong (step : M ⭢βηᶠ M') (lc_N : LC N) : app N M ⭢βη
 theorem steps_app_l_cong (steps : M ↠βηᶠ M') (lc_N : LC N) : app M N ↠βηᶠ app M' N := by
   induction steps with
   | refl => grind
-  | tail _ h ih =>
-    refine ih.tail ?_
-    rcases h with h | h
-    · exact join_inl (h.appR lc_N)
-    · exact join_inr (h.appR lc_N)
+  | tail _ h ih => exact ih.tail (step_app_l_cong h lc_N)
 
 theorem steps_app_r_cong (steps : M ↠βηᶠ M') (lc_N : LC N) : app N M ↠βηᶠ app N M' := by
   induction steps with
   | refl => grind
-  | tail _ h ih =>
-    refine ih.tail ?_
-    rcases h with h | h
-    · exact join_inl (h.appL lc_N)
-    · exact join_inr (h.appL lc_N)
-
-lemma steps_fv [HasFresh Var] [DecidableEq Var] (steps : M ↠βηᶠ N) : N.fv ⊆ M.fv := by
-  induction steps with
-  | refl => grind
-  | tail _ h _ => cases h with
-    | inl h => grind [FullBeta.step_not_fv h]
-    | inr h => grind [FullEta.step_not_fv h]
+  | tail _ h ih => exact ih.tail (step_app_r_cong h lc_N)
 
 lemma from_beta : ((· ↠βᶠ ·) : Term Var → Term Var → Prop) ≤ (· ↠βηᶠ  ·) := by
   intros M N hm
@@ -92,6 +77,30 @@ theorem normal_fullbeta_iff :
     intros h
     obtain ⟨t, h⟩ := h
     cases h <;> grind
+
+variable [HasFresh Var] [DecidableEq Var]
+
+lemma step_fv (step : M ⭢βηᶠ N) : N.fv ⊆ M.fv := by
+    cases step with
+    | inl h => grind [FullBeta.step_not_fv h]
+    | inr h => grind [FullEta.step_not_fv h]
+
+lemma steps_fv (steps : M ↠βηᶠ N) : N.fv ⊆ M.fv := by
+  induction steps with
+  | refl => grind
+  | tail _ step _ => grind [step_fv step]
+
+lemma step_subst_cong_l (s s' t : Term Var) (x : Var) (step : s ⭢βηᶠ s') (h_lc : LC t) :
+    s[x := t] ⭢βηᶠ s'[x := t] := by
+  cases step with
+  | inl h => left
+             apply FullBeta.redex_subst_cong_lc _ _ _ _ h h_lc
+  | inr h =>  right
+              apply FullEta.step_subst_cong_l _ _ _  h h_lc
+
+lemma steps_subst_cong_l (s s' t : Term Var) (x : Var) (steps : s ↠βηᶠ s') (h_lc : LC t) :
+    s[x := t] ↠βηᶠ s'[x := t] := by
+  induction steps with grind [step_subst_cong_l]
 
 end FullBetaEta
 
