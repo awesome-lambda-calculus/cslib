@@ -93,6 +93,20 @@ theorem normal_fullbeta_iff :
     obtain ⟨t, h⟩ := h
     cases h <;> grind
 
+variable [HasFresh Var] [DecidableEq Var]
+
+lemma step_subst_cong_l (s s' t : Term Var) (x : Var) (step : s ⭢βηᶠ s') (h_lc : LC t) :
+    s[x := t] ⭢βηᶠ s'[x := t] := by
+  cases step with
+  | inl h => left
+             apply FullBeta.redex_subst_cong_lc _ _ _ _ h h_lc
+  | inr h =>  right
+              apply FullEta.step_subst_cong_l _ _ _  h h_lc
+
+lemma steps_subst_cong_l (s s' t : Term Var) (x : Var) (steps : s ↠βηᶠ s') (h_lc : LC t) :
+    s[x := t] ↠βηᶠ s'[x := t] := by
+  induction steps with grind [step_subst_cong_l]
+
 end FullBetaEta
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
