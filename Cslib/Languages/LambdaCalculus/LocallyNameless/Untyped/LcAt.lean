@@ -11,10 +11,10 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Depth
 
 /-!
 
-Alternative Definitions for LC:
+Definitions for LC and `LcAt`:
 
-This module defines `LcAt k M`, a more general definition of local closure. When k = 0, this is
-equivalent to `LC`, as shown in `lcAt_iff_LC`.
+`LcAt k M` is a more general definition of local closure. When k = 0, this is equivalent to `LC`,
+as shown in `lcAt_iff_LC`.
 
 -/
 
