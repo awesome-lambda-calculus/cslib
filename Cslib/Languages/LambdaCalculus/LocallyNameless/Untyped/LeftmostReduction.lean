@@ -91,6 +91,46 @@ lemma Leftmost.of_cbn (h : M ↠ₙ N) : M ↠ℓ N := by
   | refl => rfl
   | tail _ step ih => exact ih.tail (BetaAt.of_cbn_step step)
 
+theorem Leftmost.induction_rule
+  {motive : ∀ {a b : Term Var}, Leftmost a b → Prop}
+  {a b : Term Var}
+  (h : Leftmost a b)
+  (h_outer : ∀ (M N : Term Var) (hm : M.abs.LC) (hn : N.LC), motive (BetaAt.outer hm hn))
+  (h_appL : ∀ {M M' N : Term Var} (h : Leftmost M M') (hm : ¬ IsAbs M),
+    motive h →
+    @motive (M.app N) (M'.app N) (by simpa [Leftmost, hm] using (BetaAt.appL h)))
+  (h_appR : ∀ {M M' N : Term Var} (h : Leftmost M M') (hn : ¬ IsAbs N)
+    (g : N.countRedexes = 0),
+    motive h →
+    @motive (N.app M) (N.app M') (by
+      have hidx : (N.countRedexes + if N.IsAbs then 1 else 0) = 0 := by grind
+      unfold Leftmost
+      simpa [hidx] using (@BetaAt.appR _ _ _ _ N h)
+      ))
+    (h_abs :
+      ∀ (M M': Term Var) (xs : Finset Var)
+        (h : ∀ x ∉ xs, Leftmost (M ^ fvar x) (M' ^ fvar x)),
+        (∀ x hx, motive (h x hx)) → motive (BetaAt.abs xs h))
+    : motive h := by
+  unfold Leftmost at h
+  generalize hi : 0 = i
+  rw [hi] at h
+  induction h with
+  | outer => grind
+  | appL h ih =>
+      rename_i i _ _ _ _
+      have : i = 0 := by omega
+      subst i
+      apply h_appL h (by grind) (by grind)
+  | appR h =>
+      rename_i i _ _ _ _ _
+      have : i = 0 := by omega
+      subst i
+      apply h_appR h (by grind) (by grind) (by grind)
+  | abs xs h ih =>
+      subst_vars
+      exact h_abs _ _ xs (fun x hx => h x hx) (fun x hx => ih _ hx _ (by omega))
+
 variable [DecidableEq Var] [HasFresh Var]
 
 lemma Leftmost.steps_fv (steps : M ↠ℓ M') : M'.fv ⊆ M.fv := by
@@ -201,6 +241,11 @@ theorem countRedexes_equiv_full_beta :
 
 theorem betanormal_iff : (BetaNormal M \/ ¬ M.LC) ↔ Relation.Normal FullBeta M := by
   grind [@countRedexes_equiv_full_beta _ M (by assumption) (by assumption)]
+
+instance (t : Term Var) : Decidable (Relation.Normal FullBeta t) := by
+  rw [← betanormal_iff, ← lcAt_iff_LC]
+  unfold BetaNormal
+  infer_instance
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
