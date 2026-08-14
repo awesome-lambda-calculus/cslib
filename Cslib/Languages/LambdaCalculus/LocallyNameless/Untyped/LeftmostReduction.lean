@@ -145,18 +145,19 @@ theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : BetaNormal N) : M ↠ℓ N :
 theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : BetaNormal N) : M ↠ℓ N :=
   of_standard (.standardization lc h) hn
 
-theorem beta_nf_app {M N : Term String}
-  (h : ¬ M.IsAbs)
-  (hm : Relation.Normal FullBeta M)
-  (hn : Relation.Normal FullBeta N) :
-  Relation.Normal FullBeta (M.app N) := by
-  rintro ⟨y, h⟩
-  cases h with
-    | base h => cases h with | beta _ _ => grind
-    | appL _ h => apply hn
-                  refine ⟨_, h⟩
-    | appR _ h => apply hm
-                  refine ⟨_, h⟩
+theorem beta_nf_app : Relation.Normal FullBeta (M.app N) ↔
+     ¬ M.IsAbs /\ Relation.Normal FullBeta M /\ Relation.Normal FullBeta N := by
+  constructor
+  . intros h
+    sorry
+  . rintro ⟨_, hm, hn⟩
+    rintro ⟨y, h⟩
+    cases h with
+      | base h => cases h with | beta _ _ => grind
+      | appL _ h => apply hn
+                    refine ⟨_, h⟩
+      | appR _ h => apply hm
+                    refine ⟨_, h⟩
 
 theorem betanormal_iff : BetaNormal M <-> Relation.Normal FullBeta M := by
   induction M with
