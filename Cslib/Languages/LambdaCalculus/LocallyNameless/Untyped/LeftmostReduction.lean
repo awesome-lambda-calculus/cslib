@@ -145,6 +145,59 @@ theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : BetaNormal N) : M ↠ℓ N :
 theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : BetaNormal N) : M ↠ℓ N :=
   of_standard (.standardization lc h) hn
 
+
+theorem countRedexes_equiv_full_beta :
+    (countRedexes M > 0 ∧ M.LC) ↔ Relation.Reducible FullBeta M := by
+  constructor
+  · rintro ⟨h_redex, h_lc⟩
+    induction h_lc with
+    | fvar _ => simp [countRedexes] at h_redex
+    | @abs L e h_body ih =>
+      have h_redex_e : countRedexes e > 0 := h_redex
+      have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
+      have h_redex_open : countRedexes (e ^ Term.fvar x) > 0 := by
+        unfold open'
+        rw [countRedexes_openRec_fvar]; exact h_redex_e
+      have ⟨N, hN⟩ := ih x (by grind) h_redex_open
+      have hclose : ((e ^ Term.fvar x) ^* x).abs ⭢βᶠ (N ^* x).abs :=
+        FullBeta.step_abs_close hN
+      rw [show (e ^ Term.fvar x) ^* x = e from (open_close_var x e (by grind)).symm] at hclose
+      exact ⟨_, hclose⟩
+    | @app l r lc_l lc_r ih_l ih_r =>
+      cases l with
+      | bvar i => cases lc_l
+      | fvar y =>
+        simp only [countRedexes] at h_redex
+        have ⟨N, hN⟩ := ih_r (by omega)
+        exact ⟨_, Xi.appL lc_l hN⟩
+      | abs t => exact ⟨t ^ r, .base (.beta lc_l lc_r)⟩
+      | app l1 l2 =>
+        have h_or : countRedexes (Term.app l1 l2) + countRedexes r > 0 := h_redex
+        by_cases hl : countRedexes (Term.app l1 l2) > 0
+        · have ⟨N, hN⟩ := ih_l hl
+          exact ⟨_, Xi.appR lc_r hN⟩
+        · have hl_false : countRedexes (Term.app l1 l2) = 0 := by
+            cases hh : countRedexes (Term.app l1 l2)
+            · rfl
+            · omega
+          rw [hl_false] at h_or
+          have hr : countRedexes r > 0 := by omega
+          have ⟨N, hN⟩ := ih_r hr
+          exact ⟨_, Xi.appL lc_l hN⟩
+  · rintro ⟨N, hN⟩
+    refine ⟨?_, FullBeta.step_lc_l hN⟩
+    induction hN with
+    | base hN => cases hN with | beta _ _ => grind
+    | appL _ _ _ => unfold countRedexes; grind
+    | appR _ _ _ => unfold countRedexes; grind
+    | abs xs _ ih =>
+        unfold countRedexes
+        have ⟨x, hx⟩ := fresh_exists xs
+        specialize ih x hx
+        unfold open' at ih
+        rw [countRedexes_openRec_fvar] at ih
+        omega
+
 theorem beta_nf_app : Relation.Normal FullBeta (M.app N) ↔
      ¬ M.IsAbs /\ Relation.Normal FullBeta M /\ Relation.Normal FullBeta N := by
   constructor
