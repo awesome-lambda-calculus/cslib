@@ -7,6 +7,7 @@ Authors: Maximiliano Onofre Martínez
 module
 
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.StandardReduction
+public import Cslib.Foundations.Relation.Defs
 
 /-! # The Leftmost Reduction Theorem
 
@@ -40,8 +41,8 @@ variable {L L' M M' N : Term Var} {i : Nat}
 
 /-- In a normal-form application, both sides are normal and the operator is not an
     abstraction. -/
-lemma BetaNormal.app_inv (h : BetaNormal (app L M)) :
-    ¬IsAbs L ∧ BetaNormal L ∧ BetaNormal M := by
+lemma BetaNormal.app_inv :
+  BetaNormal (app L M) ↔ ¬IsAbs L ∧ BetaNormal L ∧ BetaNormal M := by
   cases L <;> grind [countRedexes]
 
 /-- The body of a normal-form abstraction opens to a normal form. -/
@@ -126,7 +127,8 @@ theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : BetaNormal N) : M ↠ℓ N :
   induction h
   case fvar x => rfl
   case app _ _ ihL ihM =>
-    have ⟨hna, hL', hM'⟩ := hn.app_inv
+    rw [BetaNormal.app_inv] at hn
+    have ⟨hna, hL', hM'⟩ := hn
     exact steps_app_cong (ihL hL') (ihM hM') hL' hna
   case abs xs h_body ih =>
     have lc := (Standard.abs xs h_body).lc_l
@@ -142,6 +144,32 @@ theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : BetaNormal N) : M ↠ℓ N :
     reduction reaches it. -/
 theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : BetaNormal N) : M ↠ℓ N :=
   of_standard (.standardization lc h) hn
+
+theorem beta_nf_app {M N : Term String}
+  (h : ¬ M.IsAbs)
+  (hm : Relation.Normal FullBeta M)
+  (hn : Relation.Normal FullBeta N) :
+  Relation.Normal FullBeta (M.app N) := by
+  rintro ⟨y, h⟩
+  cases h with
+    | base h => cases h with | beta _ _ => grind
+    | appL _ h => apply hn
+                  refine ⟨_, h⟩
+    | appR _ h => apply hm
+                  refine ⟨_, h⟩
+
+theorem betanormal_iff : BetaNormal M <-> Relation.Normal FullBeta M := by
+  induction M with
+  | bvar _ => simp only [BetaNormal, countRedexes, not_exists, true_iff]
+              intro _ h
+              cases h with | base h => cases h
+  | fvar _ => simp only [BetaNormal, countRedexes, not_exists, true_iff]
+              intro _ h
+              cases h with | base h => cases h
+  | abs _ _ => sorry
+  | app _ _ iha ihb =>
+      rw [BetaNormal.app_inv, iha, ihb]
+      sorry
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
