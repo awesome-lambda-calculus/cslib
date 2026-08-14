@@ -159,17 +159,17 @@ theorem beta_nf_app : Relation.Normal FullBeta (M.app N) ↔
       | appR _ h => apply hm
                     refine ⟨_, h⟩
 
-theorem betanormal_iff : BetaNormal M <-> Relation.Normal FullBeta M := by
+theorem betanormal_iff : (BetaNormal M \/ ¬ M.LC) <-> Relation.Normal FullBeta M := by
   induction M with
-  | bvar _ => simp only [BetaNormal, countRedexes, not_exists, true_iff]
+  | bvar _ => simp only [BetaNormal, countRedexes, true_or, not_exists, true_iff]
               intro _ h
               cases h with | base h => cases h
-  | fvar _ => simp only [BetaNormal, countRedexes, not_exists, true_iff]
+  | fvar _ => simp only [BetaNormal, countRedexes, true_or, not_exists, true_iff]
               intro _ h
               cases h with | base h => cases h
   | abs _ _ => sorry
   | app _ _ iha ihb =>
-      rw [BetaNormal.app_inv, iha, ihb]
+      rw [BetaNormal.app_inv]
       sorry
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
