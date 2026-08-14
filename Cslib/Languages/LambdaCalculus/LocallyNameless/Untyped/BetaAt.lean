@@ -172,6 +172,16 @@ lemma BetaAt.le_countRedexes (h : BetaAt i M N) : i ≤ countRedexes N := by
 
 variable [DecidableEq Var]
 
+lemma BetaAt.step_fv (h : BetaAt i M M') : M'.fv ⊆ M.fv := by
+  induction h with
+  | outer _ _ => grind [open_preserve_not_fvar]
+  | appL _ _ => grind
+  | appR _ _ => grind
+  | abs xs _ _ =>
+    have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+    have := open_close x
+    grind [open_preserve_not_fvar 0 M M']
+
 /-- Renaming a free variable preserves the position of the contracted redex. -/
 lemma BetaAt.rename (h : BetaAt i M M') (x y : Var) :
     BetaAt i (M[x := fvar y]) (M'[x := fvar y]) := by
