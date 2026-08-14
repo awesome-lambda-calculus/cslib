@@ -157,7 +157,8 @@ theorem countRedexes_equiv_full_beta :
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
       have h_redex_open : countRedexes (e ^ Term.fvar x) > 0 := by
         unfold open'
-        rw [countRedexes_openRec_fvar]; exact h_redex_e
+        rw [countRedexes_openRec_fvar]
+        exact h_redex_e
       have ⟨N, hN⟩ := ih x (by grind) h_redex_open
       have hclose : ((e ^ Term.fvar x) ^* x).abs ⭢βᶠ (N ^* x).abs :=
         FullBeta.step_abs_close hN
@@ -198,32 +199,8 @@ theorem countRedexes_equiv_full_beta :
         rw [countRedexes_openRec_fvar] at ih
         omega
 
-theorem beta_nf_app : Relation.Normal FullBeta (M.app N) ↔
-     ¬ M.IsAbs /\ Relation.Normal FullBeta M /\ Relation.Normal FullBeta N := by
-  constructor
-  . intros h
-    sorry
-  . rintro ⟨_, hm, hn⟩
-    rintro ⟨y, h⟩
-    cases h with
-      | base h => cases h with | beta _ _ => grind
-      | appL _ h => apply hn
-                    refine ⟨_, h⟩
-      | appR _ h => apply hm
-                    refine ⟨_, h⟩
-
-theorem betanormal_iff : (BetaNormal M \/ ¬ M.LC) <-> Relation.Normal FullBeta M := by
-  induction M with
-  | bvar _ => simp only [BetaNormal, countRedexes, true_or, not_exists, true_iff]
-              intro _ h
-              cases h with | base h => cases h
-  | fvar _ => simp only [BetaNormal, countRedexes, true_or, not_exists, true_iff]
-              intro _ h
-              cases h with | base h => cases h
-  | abs _ _ => sorry
-  | app _ _ iha ihb =>
-      rw [BetaNormal.app_inv]
-      sorry
+theorem betanormal_iff : (BetaNormal M \/ ¬ M.LC) ↔ Relation.Normal FullBeta M := by
+  grind [@countRedexes_equiv_full_beta _ M (by assumption) (by assumption)]
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
