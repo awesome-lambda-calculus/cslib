@@ -163,7 +163,7 @@ lemma StandardSeq.le_countRedexes_of_ne (h : StandardSeq n M N) (hne : M ≠ N) 
     n ≤ countRedexes N := by
   cases h with
   | refl => contradiction
-  | tail _ step _ => exact step.le_countRedexes
+  | tail _ step _ => exact step.le_countRedexes_r
 
 omit [HasFresh Var] in
 /-- Reducing the operator of an application yields a standard sequence, with the final position
