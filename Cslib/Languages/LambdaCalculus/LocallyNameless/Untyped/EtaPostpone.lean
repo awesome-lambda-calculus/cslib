@@ -133,7 +133,7 @@ theorem localpostpone_fullBeta_fullEta :
   LocalPostpone (Relation.ReflTransGen (FullBeta (Var := Var))) (Relation.ReflTransGen FullEta) :=
   by
     intros _ _ _ heta hbeta
-    simp [<- reflTransGen_parallel_fullBeta] at hbeta
+    simp only [<- reflTransGen_parallel_fullBeta] at hbeta
     rw [<- paraEtachain_iff_redex] at heta
     obtain ⟨s, _, _⟩ := postpone_ab parEta_parBeta_postpone heta hbeta
     use s
