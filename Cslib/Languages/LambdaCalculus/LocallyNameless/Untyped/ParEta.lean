@@ -203,7 +203,7 @@ theorem parEta_inv_abs {L A : Term Var} :
 variable [HasFresh Var]
 
 /-- The `k`-fold η-expansion of a locally closed term is locally closed. -/
-@[simp, scoped grind]
+@[simp, scoped grind <-]
 theorem etaExp_lc {M : Term Var} (hM : LC M) (k : ℕ) : LC (etaExp^[k] M) := by
   induction k with
   | zero => exact hM
@@ -542,12 +542,12 @@ theorem parEta_hasBetaNF {P Q : Term Var}
                           | inr hQN =>  subst Q
                                         apply ParEta.step_lc_r at h
                                         grind
-  simp [<- reflTransGen_parallel_fullBeta] at hQN
+  simp only [<- reflTransGen_parallel_fullBeta] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
   obtain ⟨P', hPP', hP'N⟩ := postpone_a parEta_parBeta_postpone h hQN
   -- The η-expansion `P' ⟹η N` of the normal form `N` has a β-normal form.
   obtain ⟨M, hP'M, hMnorm⟩ := (core_par (betaNF_normal hNlc hN) P' hP'N).1
-  simp [reflTransGen_parallel_fullBeta] at hPP'
+  simp only [reflTransGen_parallel_fullBeta] at hPP'
   apply  Normal.betaNF at hMnorm
   exact ⟨M, .trans hPP' hP'M, hMnorm⟩
 
