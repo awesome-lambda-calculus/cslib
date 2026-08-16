@@ -85,6 +85,15 @@ theorem lcAt_openRec_fvar_iff_lcAt (M : Term Var) (x : Var) (i : ℕ) :
 theorem lcAt_open_fvar_iff_lcAt (M : Term Var) (x : Var) : LcAt 0 (M ^ fvar x) = LcAt 1 M :=
   lcAt_openRec_iff_lcAt M (fvar x) 0 (lcAt_le _ 0 0 (by omega) (by grind))
 
+/- Opening for some term at i-th bound variable increments `LcAt` by one -/
+lemma lcAt_openRec_lcAt (M N : Term Var) (i : ℕ) :
+    LcAt i (M⟦i ↝ N⟧) → LcAt (i + 1) M := by
+  induction M generalizing i <;> grind
+
+lemma lcAt_openRec_above_lcAt (M N : Term Var) (i j : ℕ) (h : i ≤ j) (lc : LcAt i M) :
+    M⟦j ↝ N⟧ = M := by
+  induction M generalizing i j <;> grind
+
 /-- Locally closed terms. -/
 inductive LC : Term Var → Prop
 | fvar (x : Var)  : LC (fvar x)
@@ -131,19 +140,10 @@ instance [HasFresh Var] (t : Term Var) : Decidable t.LC := by
   rw [← lcAt_iff_LC]
   infer_instance
 
-/- Opening for some term at i-th bound variable increments `LcAt` by one -/
-lemma lcAt_openRec_lcAt (M N : Term Var) (i : ℕ) :
-    LcAt i (M⟦i ↝ N⟧) → LcAt (i + 1) M := by
-  induction M generalizing i <;> grind
-
 /- When `M ^ N` is locally closed, then `M.abs` is locally closed. This is proven by translating LC
    to LcAt, applying lcAt_openRec_lcAt, then translating back to LC -/
 lemma open_abs_lc [HasFresh Var] {M N : Term Var} (hlc : LC (M ^ N)) : LC (M.abs) := by
   rw [← lcAt_iff_LC] at *
   exact lcAt_openRec_lcAt _ _ _ hlc
-
-lemma lcAt_openRec_above_lcAt (M N : Term Var) (i j : ℕ) (h : i ≤ j) (lc : LcAt i M) :
-    M⟦j ↝ N⟧ = M := by
-  induction M generalizing i j <;> grind
 
 end Cslib.LambdaCalculus.LocallyNameless.Untyped.Term
