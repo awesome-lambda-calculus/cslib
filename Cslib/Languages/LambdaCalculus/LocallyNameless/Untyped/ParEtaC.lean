@@ -279,8 +279,7 @@ theorem interaction (t : Term Var) : InteractionAt t := by
       · refine Or.inl ⟨Term.abs (closeRec 0 x s''), m, ParEtaC.abs_of_open x ?_ ?_ ?_, ?_⟩
         · grind
         · grind
-        · unfold open'
-          rw [close_openRec _ _ _ (FullBeta.step_lc_r hbeta)]
+        · rw [close_open _ _ (FullBeta.step_lc_r hbeta)]
           grind
         · rw [open_close x M0' 0 (by grind)]
           apply FullBeta.step_abs_close
