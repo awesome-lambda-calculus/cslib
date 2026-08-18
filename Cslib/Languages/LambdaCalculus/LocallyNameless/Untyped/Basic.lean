@@ -148,12 +148,12 @@ def size : Term Var → ℕ
 /-
 Opening by a free variable preserves size.
 -/
-omit [HasFresh Var] [DecidableEq Var] in
+omit [DecidableEq Var] in
 theorem size_openRec_fvar (k : ℕ) (x : Var) (t : Term Var) :
     size (openRec k (fvar x) t) = size t := by
     induction t generalizing k <;> grind
 
-omit [HasFresh Var] [DecidableEq Var] in
+omit [DecidableEq Var] in
 @[simp]
 theorem size_open_fvar (x : Var) (t : Term Var) : size (t ^ fvar x) = size t :=
   size_openRec_fvar 0 x t
