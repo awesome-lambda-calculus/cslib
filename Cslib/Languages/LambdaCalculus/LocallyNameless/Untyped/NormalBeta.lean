@@ -140,7 +140,6 @@ theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta 
     unfold close open'
     rw [close_openRec_to_subst]
     · have g := FullBeta.redex_subst_cong_lc _ _ (fvar y) x g (by grind)
-      unfold open' at g
       rw [<- subst_intro_openRec] at g
       · exact g
       · grind
