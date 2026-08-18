@@ -62,7 +62,7 @@ theorem WeakPostpone_fullBeta_fullEta :
                            (.base (.beta h h2)),
                      .refl⟩
           · grind
-          · unfold open' openRec
+          · unfold openRec
             rw [open_lc _ _ _ h]
             grind
     | abs xs h ih => cases hxy with
