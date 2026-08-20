@@ -9,6 +9,7 @@ module
 public import Cslib.Foundations.Relation.Attr
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Properties
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Size
 
 /-! # η-reduction for the λ-calculus -/
 
@@ -153,6 +154,13 @@ lemma steps_open_cong_r {s t t' : Term Var} (lc_s : LC s.abs) (steps : t ↠η�
   induction steps using Relation.ReflTransGen.head_induction_on
   case refl => rfl
   case head _ _ st _ ih => exact .trans (step_open_cong_r lc_s st) ih
+
+lemma step_size (step : M ⭢ηᶠ M') : M'.size < M.size := by
+  induction step with
+  | abs xs _ =>
+    have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+    grind
+  | _ => grind
 
 /- Closing a sequence of η-reduction steps over a fresh variable preserves the steps. -/
 open Relation in

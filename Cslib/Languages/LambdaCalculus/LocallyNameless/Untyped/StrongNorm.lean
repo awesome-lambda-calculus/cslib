@@ -7,6 +7,7 @@ Authors: David Wegmann
 module
 
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.MultiApp
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LcAt
 public import Cslib.Foundations.Relation.Confluence
@@ -155,6 +156,13 @@ lemma sn_abs_app_multiApp [DecidableEq Var] [HasFresh Var] {Ps} {M N : Term Var}
               right
               refine Relation.TransGen.single (Xi.base (Beta.beta ?_ ?_))
               all_goals grind
+
+lemma sn_eta [HasFresh Var] [DecidableEq Var] : SN FullEta t := by
+  induction h : t.size using Nat.strong_induction_on generalizing t with | h n ih =>
+  apply SN.intro
+  intros y hy
+  apply FullEta.step_size at hy
+  exact ih y.size (by omega) rfl
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
