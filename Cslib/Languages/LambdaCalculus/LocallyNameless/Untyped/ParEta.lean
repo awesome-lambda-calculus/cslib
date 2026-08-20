@@ -1,0 +1,527 @@
+/-
+Copyright (c) 2025 Chris Henson. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Yijun Leng
+-/
+
+
+module
+
+public import Cslib.Foundations.Relation.Attr
+public import Cslib.Foundations.Relation.Defs
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaNfLc
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaConfluence
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
+
+/-!  # Parallel η-reduction
+
+This file formalises [Takahashi1995] Section 3.
+
+## Design
+
+This file only contain theorems related to `ParEta` and `etaExp`.
+Eta-postpone theorem, see `EtaPostpone.lean`
+
+## Reference
+
+* [Y. Takahashi, *Parallel Reductions in λ-Calculus*][Takahashi1995]
+
+-/
+
+
+@[expose] public section
+
+set_option linter.unusedDecidableInType false
+
+namespace Cslib
+
+universe u
+
+namespace LambdaCalculus.LocallyNameless.Untyped.Term
+
+open Relation Function
+
+variable {Var : Type u}
+
+/-- A parallel η-reduction step. -/
+inductive ParEta : Term Var → Term Var → Prop
+/-- Free variables parallel step to themselves. -/
+  | fvar (x : Var) : ParEta (fvar x) (fvar x)
+/-- A parallel left and right congruence rule for application. -/
+  | app {M M' N N' : Term Var} :
+      ParEta M M' → ParEta N N' → ParEta (app M N) (app M' N')
+/-- Congruence rule for lambda terms. -/
+  | abs (xs : Finset Var) {M M' : Term Var} :
+      (∀ x ∉ xs, ParEta (M ^ fvar x) (M' ^ fvar x)) → ParEta (abs M) (abs M')
+/-- A parallel η-reduction. -/
+  | eta {M M' : Term Var} :
+      LC M → ParEta M M' → ParEta (abs (app M (bvar 0))) M'
+
+/-- Parallel η-reduction is reflexive on locally closed terms. -/
+@[scoped grind ->]
+theorem ParEta.lc_refl {M : Term Var} (h : LC M) : ParEta M M := by
+  induction h with
+  | fvar x => exact ParEta.fvar x
+  | abs xs t _ ih => exact ParEta.abs xs ih
+  | app _ _ ihM ihN => exact ParEta.app ihM ihN
+
+theorem FullEta.le_parallel : (· ⭢ηᶠ ·) ≤ (ParEta : Term Var → Term Var → Prop) := by
+  intro M N step
+  induction step with
+  | base h => cases h
+              exact ParEta.eta (by assumption) (ParEta.lc_refl (by assumption))
+  | appL _ _ _ => exact ParEta.app (ParEta.lc_refl (by assumption)) (by assumption)
+  | appR _ _ _ => exact ParEta.app (by assumption) (ParEta.lc_refl (by assumption))
+  | abs xs _ ih => exact ParEta.abs xs ih
+
+@[scoped grind ->]
+theorem ParEta.step_lc_r {M N : Term Var} (h : ParEta M N) : LC N := by
+  induction h with
+  | fvar x => exact LC.fvar x
+  | app _ _ ihM ihN => exact LC.app ihM ihN
+  | abs xs _ ih => exact LC.abs xs _ fun x hx => (ih x hx)
+  | @eta M M' hM _ ih => exact ih
+
+@[scoped grind ->]
+theorem ParEta.step_lc_l [HasFresh Var]
+  {M N : Term Var} (h : ParEta M N) : LC M := by
+  induction h with
+  | fvar x => exact LC.fvar x
+  | app _ _ ihM ihN => exact LC.app ihM ihN
+  | abs xs _ ih => exact LC.abs xs _ fun x hx => (ih x hx)
+  | @eta M M' hM _ ih => exact LC.abs ∅ _ fun x _ => LC.app (by grind) (by grind)
+
+/-- A single parallel η-step is a sequence of full η-steps. -/
+theorem ParEta.le_reflTransGen_fullEta [DecidableEq Var] [HasFresh Var] :
+  (ParEta : Term Var → Term Var → Prop) ≤ (· ↠ηᶠ ·) := by
+  intro M N para
+  induction para with
+  | fvar x => exact Relation.ReflTransGen.refl
+  | eta hM hMM' ih => exact .head (Xi.base (.eta hM)) ih
+  | @app M M' N N' hM hN ihM ihN =>
+      exact .trans (FullEta.redex_app_l_cong ihM ((ParEta.step_lc_l hN)))
+                   (FullEta.redex_app_r_cong ihN ((ParEta.step_lc_r hM)))
+  | abs xs h ih => exact FullEta.redex_abs_cong xs ih
+
+theorem reflTransGen_parallel_fullEta [DecidableEq Var] [HasFresh Var]
+   : (Relation.ReflTransGen ParEta : Term Var → Term Var → Prop) = (· ↠ηᶠ ·) := by
+  apply le_antisymm
+  · exact reflTransGen_le_of_le ParEta.le_reflTransGen_fullEta
+  · exact ReflTransGen.mono FullEta.le_parallel
+
+/-- Parallel reduction respects substitution. -/
+theorem ParEta.para_subst [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} (x : Var)
+  (pm : ParEta M M') (pn : ParEta N N') :
+    ParEta (M[x:=N]) (M'[x:= N']) := by
+  induction pm generalizing N N' with
+  | fvar _ => grind
+  | app _ _ _ _ => exact ParEta.app (by grind) (by grind)
+  | abs xs h ih => exact ParEta.abs (xs ∪ { x }) fun x hx => by grind
+  | eta hM hMM' ih => exact ParEta.eta (Term.subst_lc hM pn.step_lc_l) (ih pn)
+
+/-- Parallel substitution respects fresh opening. -/
+theorem ParEta.para_open_out [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} (xs : Finset _)
+    (hbody : ∀ x ∉ xs, ParEta (M ^ Term.fvar x) (M' ^ Term.fvar x))
+    (hN : ParEta N N') :
+    ParEta (M ^ N) (M' ^ N') := by
+  have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
+  convert ParEta.para_subst z (hbody z (by grind)) hN
+  · rw [Term.subst_intro z _ _ (by grind)]
+  · rw [Term.subst_intro z _ _ (by grind)]
+
+
+
+/-!
+# `k`-fold η-expansion and the structure of η-expansions of β-normal forms
+
+This file develops the machinery behind Takahashi's Lemma 3.6.  The central
+notion is the **`k`-fold η-expansion** `etaExp M k`, written `(M)_k` in the
+paper: `(M)_0 = M` and `(M)_{k+1} = λz. ((M)_k z)`.
+
+The main export is `etaExpand_hasBetaNF`: an η-expansion `L ↠η N` of a β-normal
+form `N` has a β-normal form.
+-/
+
+@[simp, scoped grind =]
+def etaExp (M : Term Var) : Term Var := abs (app M (bvar 0))
+
+/-
+**Lemma 3.2 (variable case).**  A single parallel η-reduct that is a variable
+comes from a `k`-fold η-expansion of that variable.
+-/
+theorem parEta_inv_fvar {L : Term Var} {x : Var}
+    (h : ParEta L (fvar x)) : ∃ k, L = etaExp^[k] (fvar x) := by
+  generalize hm : fvar x = M at h
+  induction h with
+  | fvar x => exists 0
+  | app _ _ _ _ => grind
+  | abs xs _ _ => grind
+  | eta _ _ ih => obtain ⟨k, rfl⟩ := ih hm
+                  exists k + 1
+                  rw [add_comm, Function.iterate_add]
+                  simp
+
+/-
+**Lemma 3.2 (application case).**
+-/
+theorem parEta_inv_app {L A B : Term Var} :
+    ParEta L (app A B) ->
+    ∃ k A' B', L = etaExp^[k] (app A' B') ∧ ParEta A' A ∧ ParEta B' B := by
+  induction n : Term.size L using Nat.strong_induction_on generalizing L A B with
+  | h n ih =>
+  rintro (h | h | h | h)
+  · exact ⟨0, _, _, rfl, h, by assumption⟩
+  · rename_i M hM
+    obtain ⟨k, A', B', rfl, hA', hB'⟩ := ih _ (by grind) rfl hM
+    refine ⟨k + 1, A', B', ?_, hA', hB'⟩
+    rw [add_comm, Function.iterate_add]
+    simp
+
+/-
+**Lemma 3.2 (abstraction case).**
+-/
+theorem parEta_inv_abs {L A : Term Var} :
+    ParEta L (Term.abs A) ->
+    ∃ (k : ℕ) (A' : Term Var) (xs : Finset Var), L = etaExp^[k] (Term.abs A') ∧
+      ∀ x ∉ xs, ParEta (A' ^ fvar x) (A ^ fvar x) := by
+  induction n : Term.size L using Nat.strong_induction_on generalizing L A with
+  | h n ih =>
+  rintro (h | h | h | h)
+  · exact ⟨0, _, h, rfl, by assumption⟩
+  · rename_i M hM
+    obtain ⟨k, A', xs, rfl, hA'⟩ := ih _ (by grind) rfl hM
+    refine ⟨k + 1, A', xs, ?_, hA'⟩
+    rw [add_comm, Function.iterate_add]
+    simp
+
+variable [HasFresh Var]
+
+/-- The `k`-fold η-expansion of a locally closed term is locally closed. -/
+@[simp, scoped grind <-]
+theorem etaExp_lc {M : Term Var} (hM : LC M) (k : ℕ) : LC (etaExp^[k] M) := by
+  induction k with
+  | zero => exact hM
+  | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      exact LC.abs (∅ : Finset Var) _ (by grind)
+
+/-- The `k`-fold η-expansion η-reduces back to the original term. -/
+theorem etaExp_fullEtaStar
+  {M : Term Var} (hM : LC M) (k : ℕ) :
+    (etaExp^[k] M) ↠ηᶠ M := by
+  induction k with
+  | zero => exact .refl
+  | succ n ih =>
+      refine .trans ?_ ih
+      rw [add_comm, Function.iterate_add, iterate_one, comp_apply, etaExp]
+      grind
+
+
+/-
+When an η-expansion tower is **applied** to an argument, all layers
+β-collapse (linearly, no duplication): `(B)_k G ↠β B G`.
+-/
+theorem etaExp_app_collapse
+  {B G : Term Var} (hB : LC B) (hG : LC G) (k : ℕ) :
+    (app (etaExp^[k] B) G) ↠βᶠ (app B G) := by
+  induction k with
+  | zero => exact .refl
+  | succ k ih =>
+    rw [add_comm, Function.iterate_add, Function.iterate_one, Function.comp_apply]
+    exact .trans (.head (.base (.beta (LC.abs ∅ _ (by grind)) hG)) (by grind)) ih
+
+
+/-
+`(B)_1` of a BetaNfLcNotAbs base `B` is normal.
+-/
+theorem Normal.etaExp_one
+  {B : Term Var} (hne : BetaNfLcNotAbs B) :
+    BetaNfLc (etaExp B) := by
+    refine .abs ∅ ?_
+    intro x hx
+    exact .app (by grind) (by grind) (.fvar _)
+
+/-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
+theorem parEta_etaExp
+  {Y Z : Term Var} (h : ParEta Y Z) (k : ℕ) :
+    ParEta (etaExp^[k] Y) Z := by
+  induction k with
+  | zero => exact h
+  | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      exact ParEta.eta (etaExp_lc (ParEta.step_lc_l h) k) ih
+
+/-
+Applying a `j`-fold η-expansion of an abstraction to an argument parallel
+β-reduces (in one step) to the contracted redex: `((λx.C)_j) Z ⟹β C'[Z']`.
+-/
+theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
+    (hbody : ∀ x ∉ xs, Parallel (C ^ fvar x) (C' ^ fvar x)) (hZ : Parallel Z Z')
+    (j : ℕ) :
+    Parallel (Term.app (etaExp^[j] (Term.abs C)) Z) (C' ^ Z') := by
+  induction j generalizing C C' Z Z' xs with
+  | zero => apply Parallel.beta xs hbody hZ
+  | succ j ih =>
+    have hCabs : C.abs.LC := by
+      have hLC : ∀ x ∉ xs, LC (C ^ fvar x) := by grind
+      apply LC.abs
+      exact hLC
+    rw [add_comm, Function.iterate_add]
+    apply Parallel.beta xs ?_ (by assumption)
+    intro x hx
+    grind [ih xs hbody (Parallel.fvar x), etaExp_lc hCabs j]
+
+
+variable [DecidableEq Var]
+
+/-! ## Collapse lemmas for η-expansion towers -/
+
+/-
+Congruence: β-reducing the base β-reduces the whole tower.
+-/
+theorem etaExp_betaStar_congr
+  {M M' : Term Var} (h : M ↠βᶠ M') (k : ℕ) :
+    (etaExp^[k] M) ↠βᶠ (etaExp^[k] M') := by
+  cases FullBeta.steps_lc_or_rfl h with
+  | inr => grind
+  | inl hM => induction k with
+  | zero => exact h
+  | succ k ih =>
+    rw [add_comm, Function.iterate_add]
+    exact FullBeta.redex_abs_cong ∅
+              (fun _ _ => FullBeta.redex_app_l_cong (by grind [etaExp_lc hM.1 k]) (.fvar _))
+
+
+/-
+A tower of η-expansions over an **abstraction** β-collapses completely back
+to the abstraction (each created redex `(λx.C) z →β C[z]` undoes one layer).
+-/
+theorem etaExp_abs_collapse {C : Term Var} (hC : C.abs.LC) (k : ℕ) :
+    (etaExp^[k] C.abs) ↠βᶠ C.abs := by
+  have h_beta : FullBeta (C.abs.app (bvar 0)).abs C.abs := by
+    obtain ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
+    exact .abs { x } fun y _ =>
+      by grind [Xi.base (Beta.beta (show LC C.abs from hC) (show LC (fvar y) from LC.fvar y))]
+  induction k with
+  | zero =>  exact .refl
+  | succ k ih =>
+    rw [add_comm, Function.iterate_add]
+    exact .tail
+      (FullBeta.redex_abs_cong ∅
+        (fun x _ => .trans (.trans (by grind) (FullBeta.redex_app_l_cong ih (.fvar x))) (by grind)))
+      h_beta
+
+
+/-! ## Normal forms of η-expansion towers -/
+
+/-
+A tower of η-expansions over a **BetaNfLcNotAbs** base has a normal (β-nf) form:
+it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
+-/
+theorem etaExp_NormalNotAbs_normalForm
+  {B : Term Var} (hne : BetaNfLcNotAbs B) (k : ℕ) :
+    ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ BetaNfLc M := by
+  by_cases hk : k = 0
+  · exact ⟨B, by subst hk; exact Relation.ReflTransGen.refl, hne.1⟩
+  · obtain ⟨k, rfl⟩ := Nat.exists_eq_succ_of_ne_zero hk
+    exists (B.app (bvar 0)).abs
+    induction k with
+    | zero => exact ⟨Relation.ReflTransGen.refl, Normal.etaExp_one hne⟩
+    | succ n h =>
+      refine ⟨?_, by grind⟩
+      have heq : (n + 1).succ = 1 + (n + 1) := by omega
+      rw [heq, Function.iterate_add]
+      apply FullBeta.redex_abs_cong ∅
+      intro x hx
+      apply BetaNfLcNotAbs.lc at hne
+      unfold open' openRec
+      rw [open_lc _ _ B hne, open_lc]
+      apply etaExp_app_collapse <;> grind
+      apply etaExp_lc hne
+
+
+/-! ## Structure of a single parallel η-step (Takahashi's Lemma 3.2) -/
+
+/-- Parallel β-reduction lifts through η-expansion towers. -/
+theorem parBeta_etaExp_congr
+  {A A' : Term Var} (h : Parallel A A') (k : ℕ) :
+    Parallel (etaExp^[k] A) (etaExp^[k] A') := by
+  induction k with
+  | zero => exact h
+  | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      exact Parallel.abs ∅ (by grind)
+
+
+/-! ## The reconstruction (core of Lemma 3.6) -/
+
+/-- **Core reconstruction.**  If `A` is normal and `L ⟹η A` (a single parallel
+η-step), then `L` β-reduces to a normal form; moreover if `A` is BetaNfLcNotAbs, `L`
+β-reduces to a tower `(B)_k` over a BetaNfLcNotAbs base `B`. -/
+theorem core_par {A : Term Var} (hA : BetaNfLc A) : ∀ L, ParEta L A →
+    (∃ M, L ↠βᶠ M ∧ BetaNfLc M) ∧
+    (BetaNfLcNotAbs A → ∃ k B, L ↠βᶠ (etaExp^[k] B) ∧ BetaNfLcNotAbs B) := by
+  induction hA with
+  | fvar x =>
+      intro L hL
+      obtain ⟨k, rfl⟩ := parEta_inv_fvar hL
+      exact ⟨etaExp_NormalNotAbs_normalForm (BetaNfLcNotAbs.fvar x) k,
+        fun _ => ⟨k, Term.fvar x, Relation.ReflTransGen.refl, BetaNfLcNotAbs.fvar x⟩⟩
+  | @app M N hM hMne hN ihM ihN =>
+      intro L hL
+      obtain ⟨j, M', N', rfl, hM', hN'⟩ := parEta_inv_app hL
+      have lcN' : LC N' := (ParEta.step_lc_l hN')
+      obtain ⟨k1, B1, hB1red, hB1neu⟩ := (ihM M' hM').2 ⟨hM, (by grind)⟩
+      obtain ⟨Nhat, hNred, hNnorm⟩ := (ihN N' hN').1
+      have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
+        (FullBeta.redex_app_l_cong hB1red lcN').trans
+          ((FullBeta.redex_app_r_cong hNred (etaExp_lc (BetaNfLcNotAbs.lc hB1neu) k1)).trans
+            (etaExp_app_collapse (BetaNfLcNotAbs.lc hB1neu) (BetaNfLc.lc hNnorm) k1))
+      have hBneu : BetaNfLcNotAbs (app B1 Nhat) := BetaNfLcNotAbs.app hB1neu hNnorm
+      have hcongr : (etaExp^[j] (app M' N')) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
+        etaExp_betaStar_congr hcollapse j
+      obtain ⟨M2, h2red, h2norm⟩ := etaExp_NormalNotAbs_normalForm hBneu j
+      exact ⟨⟨M2, hcongr.trans h2red, h2norm⟩, fun _ => ⟨j, app B1 Nhat, hcongr, hBneu⟩⟩
+  | @abs xs body hbody ihbody =>
+      intro L hL
+      obtain ⟨j, body', xs2, rfl, hred⟩ := parEta_inv_abs hL
+      obtain ⟨x0, hx0⟩ := fresh_exists <| free_union [fv] Var
+      obtain ⟨C0, hC0red, hC0norm⟩ :=
+        (ihbody x0 (by grind) (body' ^ fvar x0) (hred x0 (by grind))).1
+      set D := C0 ^* x0 with hDdef
+      have hDred : ∀ x : Var, (body' ^ fvar x) ↠βᶠ (D ^ fvar x) := by
+        intro x
+        have e1 : body' ^ fvar x = (body' ^ fvar x0)[x0 := fvar x] :=
+          by rw [Term.subst_intro x0]; grind
+        have e2 : D  ^ fvar x = C0[x0 := fvar x] := by rw [hDdef, close_open_to_subst] <;> grind
+        rw [e1, e2]
+        exact FullBeta.steps_redex_subst_cong _ _ _ _ hC0red (LC.fvar x)
+      have hDnormal : BetaNfLc D.abs := by
+        refine .abs (∅ : Finset Var) (fun x _ => ?_)
+        have e2 : D ^ fvar x = C0[x0 := fvar x] := by rw [hDdef, close_open_to_subst] <;> grind
+        rw [e2]
+        exact .subst_fvar hC0norm x0 x
+      have hDabs : (Term.abs body') ↠βᶠ D.abs :=
+        FullBeta.redex_abs_cong (∅ : Finset Var) (fun x _ => hDred x)
+      exact ⟨⟨D.abs,
+        (etaExp_betaStar_congr hDabs j).trans
+          (etaExp_abs_collapse (BetaNfLc.lc hDnormal) j), hDnormal⟩, by grind⟩
+
+
+/-! ## Parallel η/β postponement (Takahashi's Lemma 3.4) -/
+
+/-
+**Lemma 3.4.**  A parallel η-step postpones over a parallel β-step:
+`M ⟹η P ⟹β N` implies `M ⟹β P' ⟹η N` for some `P'`.
+-/
+theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Parallel := by
+  intros P M N hη hβ
+  induction hβ generalizing M with
+  | fvar x => exact ⟨M, Parallel.lc_refl M (ParEta.step_lc_l hη), by grind⟩
+  | app _ _ ih1 ih2 =>
+    obtain ⟨k, M1, M2, rfl, hM1, hM2⟩ := parEta_inv_app hη
+    obtain ⟨P1, hP1, hP1'⟩ := ih1 hM1
+    obtain ⟨P2, hP2, hP2'⟩ := ih2 hM2
+    exact ⟨etaExp^[k] (app P1 P2),
+            parBeta_etaExp_congr (Parallel.app hP1 hP2) k,
+            parEta_etaExp (ParEta.app hP1' hP2') k⟩
+  | abs xs hβ ih =>
+    rename_i xs M M'
+    obtain ⟨k, M0, xs2, rfl, hM0⟩ := parEta_inv_abs hη
+    obtain ⟨x0, hx0⟩ := fresh_exists <| free_union [fv] Var
+    obtain ⟨Q0, hQ0⟩ := ih x0 (by grind) (hM0 x0 (by grind))
+    set M0' : Term Var := Q0 ^* x0
+    -- Prove the cofinite families for all `x` using `LC Q0 =
+    -- (ParBeta.regular ‹ParBeta (M0^x0) Q0›).2`, `subst_intro` with
+    -- `x0∉fv M0`, `x0∉fv M'`, and `open_close_lc`.
+    have hM0_cofinite : ∀ x ∉ xs ∪ xs2, Parallel (M0 ^ fvar x) (M0' ^ fvar x) := by
+      intro x hx
+      have h_subst : M0 ^ fvar x = (M0 ^ fvar x0)[x0 := fvar x] := Term.subst_intro _ _ _ (by grind)
+      have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
+      rw [h_subst, h_subst']
+      apply para_subst <;> grind
+    have hM0'_cofinite : ∀ x ∉ xs ∪ xs2, ParEta (M0' ^ fvar x) (M' ^ fvar x) := by
+      intro x hx
+      have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
+      have h_subst'' : M' ^ fvar x = (M' ^ fvar x0)[x0:= fvar x] := subst_intro _ _ _ (by grind)
+      rw [h_subst', h_subst'']
+      exact ParEta.para_subst x0 hQ0.2 (ParEta.fvar x)
+    exact ⟨etaExp^[k] M0'.abs,
+           parBeta_etaExp_congr (Parallel.abs (xs ∪ xs2) hM0_cofinite) _,
+           parEta_etaExp (ParEta.abs (xs ∪ xs2) hM0'_cofinite) _⟩
+  | beta xs h₁ h₂ h₃ h₄ =>
+    rename_i xs M' N' M'' N''
+    obtain ⟨k, M₁, M₂, rfl, hM₁, hM₂⟩ := parEta_inv_app hη
+    obtain ⟨j, M₁b, xs', rfl, hM₁b⟩ := parEta_inv_abs hM₁
+    obtain ⟨x0, hx0'⟩ := fresh_exists <| free_union [fv] Var
+    obtain ⟨Q₁, hQ₁, hQ₂⟩ := h₃ x0 (by grind) (hM₁b x0 (by grind))
+    set M₁b' : Term Var := Q₁ ^* x0
+    -- Prove the cofinite families for all `x` using `LC Q₁ =
+    -- (ParBeta.regular ‹ParBeta (M₁b^x0) Q₁›).2`, `subst_intro` with
+    -- `x0∉fv M₁b`, `x0∉fv N'`, and `open_close_lc`.
+    have hM₁b'_family : ∀ x ∉ xs ∪ xs', Parallel (M₁b ^ fvar x) (M₁b' ^ fvar x) := by
+      intro x hx
+      have hsub : M₁b ^ fvar x = (M₁b ^ fvar x0)[x0 := fvar x] := by
+        rw [Term.subst_intro]
+        grind
+      have hsub' : M₁b' ^ fvar x = Q₁[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
+      rw [hsub, hsub']
+      exact para_subst x0 hQ₁ (Parallel.fvar x)
+    have hM₁b'_family' : ∀ x ∉ xs ∪ xs', ParEta (M₁b' ^ fvar x) (N' ^ fvar x) := by
+      intro x hx
+      have hsub : M₁b' ^ fvar x = Q₁[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
+      have hsub' : N' ^ fvar x = (N' ^ fvar x0)[x0 := fvar x] := by
+        rw [subst_intro x0 _ _ (by grind)]
+      rw [hsub, hsub']
+      exact ParEta.para_subst x0 hQ₂ (ParEta.fvar x)
+    obtain ⟨P', hP', hP''⟩ := h₄ hM₂
+    exact ⟨etaExp^[k] (M₁b' ^ P'),
+           parBeta_etaExp_congr (parBeta_etaExp_abs_app (xs ∪ xs') hM₁b'_family hP' j) k,
+           parEta_etaExp (ParEta.para_open_out _ hM₁b'_family' hP'') k⟩
+
+
+/-!
+# Takahashi's Lemma 3.6
+
+This file assembles **Lemma 3.6** of Takahashi, *Parallel Reductions in
+λ-Calculus*, *Information and Computation* 118 (1995), 120–127:
+
+  *If `P ⟹_η Q` (parallel η-reduction) and `Q` has a β-normal form, then `P` has
+  a β-normal form.*
+
+Here "`X` has a β-normal form" (`HasBetaNF X`, defined in `EtaExpand`) means that
+some β-reduction of `X` reaches a β-normal form, i.e. `∃ N, X ↠β N ∧ BetaNF N`.
+
+The proof follows Takahashi:
+
+* `Q` has a β-normal form `N`, and `N` is *normal* (`betaNF_normal`).
+* By parallel η/β **postponement** (Lemma 3.4, `parEta_parBetaStar_postpone`),
+  the reduction `P ⟹η Q ⟹β* N` reorganises to `P ⟹β* P' ⟹η N`.
+* By the **core reconstruction** (`core_par`, built on the structure of a single
+  parallel η-step, Lemma 3.2), the η-expansion `P' ⟹η N` of the normal form `N`
+  has a β-normal form; combining with `P ↠β P'` gives one for `P`.
+-/
+
+
+/-- **Takahashi's Lemma 3.6.**  If `P ⟹_η Q` (parallel η-reduction) and `Q` has a
+β-normal form, then `P` has a β-normal form. -/
+theorem parEta_hasBetaNF {P Q : Term Var}
+    (h : ParEta P Q) (hQ : Relation.Normalizable FullBeta Q) :
+                           Relation.Normalizable FullBeta P := by
+  obtain ⟨N, hQN, hN⟩ := hQ
+  have hNlc : LC N := by cases (FullBeta.steps_lc_or_rfl hQN) with grind [ParEta.step_lc_r h]
+  simp only [<- reflTransGen_parallel_fullBeta] at hQN
+  -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
+  obtain ⟨P', hPP', hP'N⟩ :=
+    DiamondCommute.diamond_commute_reflTransGen_right
+      (r₁ := (swap (ParEta (Var := Var)))) (r₂ := Parallel)
+      parEta_parBeta_postpone h hQN
+  -- The η-expansion `P' ⟹η N` of the normal form `N` has a β-normal form.
+  obtain ⟨M, hP'M, hMnorm⟩ := (core_par (betaNF_normal hNlc hN) P' hP'N).1
+  simp only [reflTransGen_parallel_fullBeta] at hPP'
+  exact ⟨M, .trans hPP' hP'M, BetaNfLc.betaNF hMnorm⟩
+
+
+end LambdaCalculus.LocallyNameless.Untyped.Term
+
+end Cslib

@@ -92,6 +92,12 @@ abbrev StronglyConfluent (r : α → α → Prop) :=
 def StronglyCommute (r₁ r₂ : α → α → Prop) :=
   ∀ {x y₁ y₂}, r₁ x y₁ → r₂ x y₂ → ∃ z, ReflGen r₂ y₁ z ∧ ReflTransGen r₁ y₂ z
 
+abbrev WeakPostpone (r₁ r₂ : α → α → Prop) :=
+  ∀ ⦃x y₁ y₂⦄, r₁ x y₁ → r₂ x y₂ → ∃ z, TransGen r₂ y₁ z ∧ ReflTransGen r₁ y₂ z
+
+abbrev WeakPlusPostpone (r₁ r₂ : α → α → Prop) :=
+  ∀ ⦃x y₁ y₂⦄, r₁ x y₁ → TransGen r₂ x y₂ → ∃ z, TransGen r₂ y₁ z ∧ ReflTransGen r₁ y₂ z
+
 /-! ### Normalization properties -/
 
 /-- An element is reducible with respect to a relation if there is a value it is related to. -/

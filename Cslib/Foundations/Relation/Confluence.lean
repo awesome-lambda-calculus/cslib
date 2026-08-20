@@ -92,6 +92,27 @@ theorem Commute.isTrans_join₂_reflTransGen (h : Commute r₁ r₂) :
 theorem Confluent.isTrans_join_reflTransGen (h : Confluent r) : IsTrans α (Join (ReflTransGen r)) :=
   Commute.isTrans_join₂_reflTransGen h
 
+theorem single_over_plus (hc : Commute r₁ r₂) (hw : WeakPostpone r₁ r₂) :
+  WeakPlusPostpone r₁ r₂ := by
+  intros x y z hxy hyz
+  induction hyz with
+  | single hyz => exact hw hxy hyz
+  | tail h₁ h₂ h₃ =>
+    obtain ⟨w, hw₁, hw₂⟩ := h₃
+    obtain ⟨s, hs₁, hs₂⟩ := hc hw₂ (.single h₂)
+    exact ⟨s, hw₁.trans_left hs₁, hs₂⟩
+
+-- mirror of `SemiCommute.to_commute`
+theorem star_over_plus (h : WeakPlusPostpone r₁ r₂) :
+  DiamondCommute (ReflTransGen r₁) (TransGen r₂) := by
+  intro a b₁ b₂ hab₁ hab₂
+  induction hab₁ with
+  | refl => use b₂
+  | tail hab hbb' ih =>
+    obtain ⟨d, hd, hd'⟩ := ih
+    obtain ⟨e, he, he'⟩ := h hbb' hd
+    use e, he, hd'.trans he'
+
 theorem SemiCommute.to_commute (h : SemiCommute r₁ r₂) : Commute r₁ r₂ := by
   intro a b₁ b₂ hab₁ hab₂
   induction hab₁ with
