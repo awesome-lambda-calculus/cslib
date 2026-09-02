@@ -155,14 +155,12 @@ comes from a `k`-fold η-expansion of that variable.
 -/
 theorem parEta_inv_fvar {L : Term Var} {x : Var}
     (h : ParEta L (fvar x)) : ∃ k, L = etaExp^[k] (fvar x) := by
-  generalize hm : fvar x = M
-  rw [hm] at h
+  generalize hm : fvar x = M at h
   induction h with
   | fvar x => exists 0
   | app _ _ _ _ => grind
   | abs xs _ _ => grind
-  | eta _ _ ih => specialize ih hm
-                  obtain ⟨ k, rfl ⟩ := ih
+  | eta _ _ ih => obtain ⟨ k, rfl ⟩ := ih hm
                   exists k + 1
                   rw [add_comm, Function.iterate_add]
                   simp
@@ -405,7 +403,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       have hcongr : (etaExp^[j] (app M' N') ) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
         etaExp_betaStar_congr hcollapse j
       obtain ⟨M2, h2red, h2norm⟩ := etaExp_NormalNotAbs_normalForm hBneu j
-      refine ⟨⟨M2, hcongr.trans h2red, h2norm⟩, fun _ => ⟨j, app B1 Nhat, hcongr, hBneu⟩⟩
+      exact ⟨⟨M2, hcongr.trans h2red, h2norm⟩, fun _ => ⟨j, app B1 Nhat, hcongr, hBneu⟩⟩
   | @abs xs body hbody ihbody =>
       intro L hL
       obtain ⟨j, body', xs2, rfl, hred⟩ := parEta_inv_abs hL
@@ -427,11 +425,9 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
         exact Normal.subst_fvar hC0norm x0 x
       have hDabs : (Term.abs body') ↠βᶠ D.abs :=
         FullBeta.redex_abs_cong (∅ : Finset Var) (fun x _ => hDred x)
-      refine ⟨⟨Term.abs D,
+      exact ⟨⟨D.abs,
         (etaExp_betaStar_congr hDabs j).trans
-          (etaExp_abs_collapse (Normal.lc hDnormal) j), hDnormal⟩, ?_⟩
-      rintro ⟨-, hc⟩
-      exact absurd rfl (hc body)
+          (etaExp_abs_collapse (Normal.lc hDnormal) j), hDnormal⟩, by grind⟩
 
 
 /-! ## Parallel η/β postponement (Takahashi's Lemma 3.4) -/
@@ -467,9 +463,9 @@ theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta :
       · rw [ h_subst, h_subst' ]
         apply para_subst <;> grind
       · rw [h_subst', h_subst'']; exact ParEta.subst_par x0 hQ0.2 (ParEta.fvar x)
-    refine ⟨etaExp^[k] M0'.abs,
-            parBeta_etaExp_congr (Parallel.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.1) _,
-            parEta_etaExp (ParEta.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.2) _⟩
+    exact ⟨etaExp^[k] M0'.abs,
+           parBeta_etaExp_congr (Parallel.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.1) _,
+           parEta_etaExp (ParEta.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.2) _⟩
   | beta xs h₁ h₂ h₃ h₄ =>
     rename_i xs M' N' M'' N''
     obtain ⟨ k, M₁, M₂, rfl, hM₁, hM₂ ⟩ := parEta_inv_app hη
@@ -491,9 +487,9 @@ theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta :
       · rw [close_open_to_subst] <;> grind
       · rw [ Term.subst_intro x0 _ _ (by grind)]
     obtain ⟨ P', hP', hP'' ⟩ := h₄ hM₂
-    refine ⟨etaExp^[k] (M₁b' ^ P'),
-            parBeta_etaExp_congr (parBeta_etaExp_abs_app (xs ∪ xs') hM₁b'_family hP' j) k,
-            parEta_etaExp (ParEta.open_par _ hM₁b'_family' hP'') k⟩
+    exact ⟨etaExp^[k] (M₁b' ^ P'),
+           parBeta_etaExp_congr (parBeta_etaExp_abs_app (xs ∪ xs') hM₁b'_family hP' j) k,
+           parEta_etaExp (ParEta.open_par _ hM₁b'_family' hP'') k⟩
 
 
 /-!
