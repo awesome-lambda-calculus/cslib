@@ -66,27 +66,12 @@ inductive ParEtaC : ℕ → Term Var → Term Var → Prop
 theorem ParEtaC.refl {M : Term Var} (h : LC M) : ParEtaC 0 M M := by
   induction n : M.size using Nat.strong_induction_on generalizing M with | h n ih =>
   match h with
-  | LC.fvar x => simp +arith [Term.size] at n; exact ParEtaC.fvar x
-  | LC.app h₁ h₂ =>
-      simp +arith [Term.size] at n
-      exact ParEtaC.app (ih _ (by linarith) h₁ rfl) (ih _ (by linarith) h₂ rfl)
+  | LC.fvar x => exact ParEtaC.fvar x
+  | LC.app h₁ h₂ => exact ParEtaC.app (ih _ (by grind) h₁ rfl) (ih _ (by grind) h₂ rfl)
   | LC.abs xs t ht =>
-      simp +arith [Term.size] at n
-      exact ParEtaC.abs xs (fun x hx => ih _ (by rw [size_open_fvar]; linarith) (ht x hx) rfl)
+      exact ParEtaC.abs xs (fun x hx => ih _ (by rw [size_open_fvar]; grind) (ht x hx) rfl)
 
-theorem ParEtaC.refl_rev [DecidableEq Var] [HasFresh Var]
-    {M N : Term Var} (h : ParEtaC 0 M N) : M = N := by
-  generalize hi: 0 = i
-  rw [hi] at h
-  induction h with
-  | fvar x => grind
-  | app _ _ _ _ => grind
-  | eta _ _ _ => grind
-  | abs xs _ ih =>  have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-                    specialize ih x (by grind) hi
-                    apply open_injective at ih <;> grind
-
-/-- **Fact 2.1.** A single full η-step is a parallel η-derivation of count `1`. -/
+/-- A single full η-step is a parallel η-derivation of count `1`. -/
 theorem parEtaC_of_fullEta {t t' : Term Var} (h : FullEta t t') : ParEtaC 1 t t' := by
   induction h with
   | base hEta => cases hEta with | eta hLC => exact ParEtaC.eta hLC (ParEtaC.refl hLC)
@@ -110,16 +95,22 @@ theorem ParEtaC.step_lc_l {n : ℕ} {M N : Term Var} (h : ParEtaC n M N) : LC M 
   | fvar x => exact LC.fvar x
   | app _ _ ihM ihN => exact LC.app ihM ihN
   | abs xs _ ih => exact LC.abs xs _ (fun x hx => (ih x hx))
-  | eta hM hMM' ih =>
-      refine LC.abs (∅ : Finset Var) _ (fun y _ => ?_)
-      apply LC.app <;> grind
+  | eta hM hMM' ih => exact LC.abs (∅ : Finset Var) _ (fun y _ => LC.app (by grind) (by grind))
 
 variable [DecidableEq Var]
 
-theorem parEtaC_to_fullEta {t t' : Term Var}
-  (h : ParEtaC 1 t t') : FullEta t t' := by
-  generalize hi: 1 = i
-  rw [hi] at h
+theorem ParEtaC.refl_rev {M N : Term Var} (h : ParEtaC 0 M N) : M = N := by
+  generalize hi: 0 = i at h
+  induction h with
+  | fvar x => grind
+  | app _ _ _ _ => grind
+  | eta _ _ _ => grind
+  | abs xs _ ih =>  have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
+                    specialize ih x (by grind) hi
+                    apply open_injective at ih <;> grind
+
+theorem parEtaC_to_fullEta {t t' : Term Var} (h : ParEtaC 1 t t') : FullEta t t' := by
+  generalize hi: 1 = i at h
   induction h with
   | fvar x => omega
   | abs xs _ _ => exact Xi.abs xs (by grind)
@@ -130,14 +121,10 @@ theorem parEtaC_to_fullEta {t t' : Term Var}
     all_goals subst_vars
     · have := ParEtaC.refl_rev ha
       subst_vars
-      apply Xi.appL
-      · apply ParEtaC.step_lc_r ha
-      · grind
+      exact Xi.appL (ParEtaC.step_lc_r ha) (by grind)
     · have := ParEtaC.refl_rev hb
       subst_vars
-      apply Xi.appR
-      · apply ParEtaC.step_lc_r hb
-      · grind
+      exact Xi.appR (ParEtaC.step_lc_r hb) (by grind)
   | eta hlc h ih => cases hi
                     apply ParEtaC.refl_rev at h
                     grind
@@ -166,7 +153,7 @@ theorem ParEtaC.abs_of_open {m : ℕ} {N s' : Term Var} (x : Var)
   · rw [hyc]; exact h
   · grind [ParEtaC.subst h x y]
 
-/-- **Fact 2.3 (Substitutivity).** If `M ⟹η M'` and `N ⟹η N'`, then
+/-- **(Substitutivity)** If `M ⟹η M'` and `N ⟹η N'`, then
 `M[x:=N] ⟹η M'[x:=N']` (for some count `c`). -/
 theorem ParEtaC.substC {a b : ℕ} {M M' N N' : Term Var} (x : Var)
     (hM : ParEtaC a M M') (hN : ParEtaC b N N') :
@@ -190,7 +177,7 @@ theorem ParEtaC.substC {a b : ℕ} {M M' N N' : Term Var} (x : Var)
       · grind [ParEtaC.step_lc_l, ParEtaC.step_lc_r]
   | @eta a M M' hM hMM' ih =>
       obtain ⟨c, hc⟩ := ih hN
-      refine ⟨c + 1, ParEtaC.eta hc.step_lc_l hc⟩
+      exact ⟨c + 1, ParEtaC.eta hc.step_lc_l hc⟩
 
 /-- Opening form of substitutivity: from `abs M ⟹η abs M'` and `N ⟹η N'`, the
 opened bodies satisfy `M^N ⟹η M'^N'` (for some count). -/
@@ -200,8 +187,7 @@ theorem ParEtaC.open_of_absBody {a b : ℕ} (xs : Finset Var) {M M' N N' : Term 
     ∃ c, ParEtaC c (M ^ N) (M' ^ N') := by
   have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
   obtain ⟨c, hc⟩ := ParEtaC.substC x (hbody x (by grind)) hN
-  refine ⟨c, ?_⟩
-  grind
+  exact ⟨c, by grind⟩
 
 omit [HasFresh Var] in
 /-- Opening by a fresh free variable is injective. -/
@@ -215,10 +201,10 @@ theorem ParEtaC.toFullEtaStar {i : Nat} {M N : Term Var} (h : ParEtaC i M N) : M
   induction h with
   | eta hM hMM' ih => exact .head (Xi.base (.eta hM)) ih
   | fvar x => exact Relation.ReflTransGen.refl
+  | abs xs h ih => exact FullEta.redex_abs_cong xs ih
   | app hM hN ihM ihN =>
       exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEtaC.step_lc_l hN)))
                                         (FullEta.redex_app_r_cong ihN ((ParEtaC.step_lc_r hM)))
-  | abs xs h ih => exact FullEta.redex_abs_cong xs ih
 
 
 /-- The conclusion of the Interaction Lemma at a fixed source term `t`. -/
@@ -272,18 +258,15 @@ theorem interaction (t : Term Var) : InteractionAt t := by
     | @abs _ _ ys M0' hbody =>
       -- t' = abs M0', hbody : ∀ x ∉ ys, ParEtaC n (M0^x) (M0'^x)
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have hsz : size (M0 ^ Term.fvar x) < size (Term.abs M0) := by
-        rw [size_open_fvar]; have : size (Term.abs M0) = size M0 + 1 := rfl; omega
+      have hsz : size (M0 ^ Term.fvar x) < size M0.abs := by
+        rw [size_open_fvar]; have : size M0.abs = size M0 + 1 := rfl; omega
       rcases IH (M0 ^ Term.fvar x) hsz _ _ _ (hbody x (by grind)) (hbodystep x (by grind)) with
         ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
-      · refine Or.inl ⟨Term.abs (closeRec 0 x s''), m, ParEtaC.abs_of_open x ?_ ?_ ?_, ?_⟩
-        · grind
-        · grind
+      · refine Or.inl ⟨(s'' ^* x).abs, m, ParEtaC.abs_of_open x (by grind) (by grind) ?_, ?_⟩
         · rw [close_open _ _ (FullBeta.step_lc_r hbeta)]
           grind
         · rw [open_close x M0' 0 (by grind)]
-          apply FullBeta.step_abs_close
-          all_goals grind
+          exact FullBeta.step_abs_close (by grind)
       · exact Or.inr ⟨m, hm, ParEtaC.abs_of_open x (by grind) (by grind) hpar⟩
     | @eta a2 P _ hP hPF =>
       -- M0 = app P (bvar 0), n = a2 + 1, hPF : ParEtaC a2 P t'
