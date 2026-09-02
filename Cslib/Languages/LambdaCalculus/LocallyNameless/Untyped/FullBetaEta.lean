@@ -59,14 +59,6 @@ theorem steps_app_r_cong (steps : M ↠βηᶠ M') (lc_N : LC N) : app N M ↠β
   | refl => grind
   | tail _ h ih => exact ih.tail (step_app_r_cong h lc_N)
 
-lemma from_beta : ((· ↠βᶠ ·) : Term Var → Term Var → Prop) ≤ (· ↠βηᶠ  ·) := by
-  intros M N hm
-  grind
-
-lemma from_eta : ((· ↠ηᶠ ·) : Term Var → Term Var → Prop) ≤ (· ↠βηᶠ  ·) := by
-  intros M N hm
-  grind
-
 theorem normal_fullbeta_iff :
   Relation.Normal FullBetaEta M ↔ Relation.Normal FullBeta M /\ Relation.Normal FullEta M := by
   constructor
