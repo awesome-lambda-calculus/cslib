@@ -48,14 +48,14 @@ inductive Normal : Term Var → Prop where
 /-- A **NormalNotAbs** term is a normal term that is not an abstraction (a
 variable-headed application spine). -/
 @[scoped grind]
-def NormalNotAbs (M : Term Var) : Prop := Normal M ∧ ∀ C, M ≠ Term.abs C
+def NormalNotAbs (M : Term Var) : Prop := Normal M ∧ ¬ M.IsAbs
 
 theorem NormalNotAbs.fvar (x : Var) : NormalNotAbs (Term.fvar x : Term Var) :=
-  ⟨Normal.fvar x, by rintro C ⟨⟩⟩
+  ⟨Normal.fvar x, by grind⟩
 
 theorem NormalNotAbs.app {M N : Term Var} (hM : NormalNotAbs M) (hN : Normal N) :
     NormalNotAbs (Term.app M N) :=
-  ⟨Normal.app hM.1 (by grind) hN, by rintro C ⟨⟩⟩
+  ⟨Normal.app hM.1 (by grind) hN, by grind⟩
 
 theorem NormalNotAbs.normal {M : Term Var} (h : NormalNotAbs M) : Normal M := h.1
 
@@ -151,15 +151,15 @@ theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta 
       intro hu
       obtain ⟨ _, hu⟩ := hu
       apply h
-      refine ⟨ _, Xi.appR (by assumption) hu⟩
+      exact ⟨ _, Xi.appR (by assumption) hu⟩
     · intros hC
       cases hC
       apply h
-      refine ⟨ _, Xi.base (Beta.beta (by assumption) (by assumption) )⟩
+      exact ⟨ _, Xi.base (Beta.beta (by assumption) (by assumption) )⟩
     · apply hM
       intro hu
       obtain ⟨ _, hu⟩ := hu
-      refine h ⟨ _, Xi.appL (by assumption) hu⟩
+      exact h ⟨ _, Xi.appL (by assumption) hu⟩
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
