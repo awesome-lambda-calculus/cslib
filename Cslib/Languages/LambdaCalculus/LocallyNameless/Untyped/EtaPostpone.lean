@@ -178,7 +178,8 @@ theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
   · intros hbeta
     obtain ⟨y, hy, hbeta⟩ := hbeta
     obtain ⟨z, hz, hnormal⟩:= Relation.SN.normalizable (FullEta.wellFoundedFullEta.apply y)
-    refine ⟨z, .trans (FullBetaEta.from_beta _ _ hy) (FullBetaEta.from_eta _ _ hz), ?_⟩
+    refine ⟨z, .trans (Relation.ReflTransGen.mono le_sup_left _ _ hy)
+                      (Relation.ReflTransGen.mono le_sup_right _ _ hz), ?_⟩
     have := Etastar_normal hz hbeta
     intros h
     obtain ⟨_, h⟩ := h
