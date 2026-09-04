@@ -37,47 +37,47 @@ variable {Var : Type u} [DecidableEq Var] [HasFresh Var]
 theorem WeakPostpone_fullBeta_fullEta :
     WeakPostpone (FullBeta (Var := Var)) (FullEta (Var := Var)) := by
   intros x y z hxy hyz
-  induction hyz generalizing x with
-  | base hyz => cases hyz with | beta h1 h2 => cases hxy with
-    | appL h h4 => exact ⟨_, .single (.base (.beta h1 (FullEta.step_lc_l h4))),
-                              FullEta.step_open_cong_r h h4⟩
-    | base hxy => cases hxy with | eta hxy =>
-        rename_i M N
-        have hmn : (M ^ N).LC := by grind
-        refine ⟨_, .single (.abs ∅ (fun x hx => Xi.appR (by grind) ?_)),
-                   .single (.base (.eta hmn))⟩
-        rw [open_lc _ _ _ hxy, open_lc _ _ _ hmn]
-        grind
-    | appR _ h => cases h with
-      | abs xs ih =>
-        exact ⟨_, .single (.base (.beta (FullEta.step_lc_l (Xi.abs xs ih)) h2)),
-                   FullEta.steps_open_cong_l xs (by grind) h2⟩
+  induction hxy generalizing z with
+  | base hxy => cases hxy with | eta hxy =>
+  refine ⟨Term.abs (z.app (bvar 0)),
+          FullBeta.steps_abs_cong ∅ (fun x hx => FullBeta.transgen_app_l (by grind) (.single ?_)),
+          .single (.base (.eta (FullBeta.step_lc_r hyz)))⟩
+  rw [open_lc _ _ _ hxy, open_lc _ _ _ (FullBeta.step_lc_r hyz)]
+  grind
+  | appL _ h ih => cases hyz with
+    | base hyz => cases hyz with | beta hm hn =>
+      exact ⟨_, .single (.base (.beta hm (FullEta.step_lc_l h))), FullEta.step_open_cong_r hm h⟩
+    | appL h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
+                    exact ⟨_, FullBeta.transgen_app_r h1 hw1, FullEta.redex_app_r_cong hw2 h1⟩
+    | appR _ h2 =>  exact ⟨_, .single (.appR (FullEta.step_lc_l h) h2),
+                              .single (.appL (FullBeta.step_lc_r h2) h)⟩
+  | appR _ h ih => cases hyz with
+    | appL _ h2 => exact ⟨_, .single (.appL (FullEta.step_lc_l h) h2),
+                             .single (.appR (FullBeta.step_lc_r h2) h)⟩
+    | appR h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
+                    exact ⟨_, FullBeta.transgen_app_l h1 hw1, FullEta.redex_app_l_cong hw2 h1⟩
+    | base hyz => cases hyz with | beta hm hz => cases h with
+      | abs xs h => exact ⟨_, .single (.base (.beta (FullEta.step_lc_l (Xi.abs xs h)) hz)),
+                              FullEta.steps_open_cong_l xs (by grind) hz⟩
       | base h => cases h with | eta h =>
-        refine ⟨_, .tail (.trans_left (.single (.base (.beta (LC.abs ∅ _ (by grind)) h2))) ?_)
-                         (.base (.beta h h2)),
-                   .refl⟩
-        unfold openRec
-        rw [open_lc _ _ _ h]
-        grind
-  | abs xs h ih => cases hxy with
-    | base hxy => cases hxy with | eta hxy =>
-      rename_i M N
-      have hmn : M.abs ⭢βᶠ N.abs := Xi.abs xs h
-      have n_lc := FullBeta.step_lc_r hmn
-      refine ⟨_, FullBeta.steps_abs_cong xs (fun x hx => FullBeta.transgen_app_l (by grind) ?_),
-                .single (.base (.eta n_lc))⟩
-      unfold openRec
-      rw [<- lcAt_iff_LC] at hxy n_lc
-      rw [lcAt_openRec_above_lcAt _ _ 1 1, lcAt_openRec_above_lcAt _ _ 1 1]
-      all_goals grind
-    | abs ys ihh =>
-      rename_i M M' N
+          refine ⟨_, .head (.base (.beta ?_ hz)) (.single (.base (.beta ?_ (by grind)))), ?_⟩
+          · rw [<- lcAt_iff_LC] at *
+            simp_all only [LcAt, zero_add, Order.lt_one_iff, decide_true, Bool.and_true]
+            apply lcAt_le _ _ _ (by omega) hm
+          · rw [<- lcAt_iff_LC] at *
+            simp_all only [LcAt, zero_add]
+            rw [lcAt_openRec_iff_lcAt _ _ _ (lcAt_le _ _ _ (by omega) hz)]
+            apply lcAt_le _ _ _ (by omega) hm
+          · rw [<- lcAt_iff_LC] at *
+            rw [lcAt_openRec_above_lcAt _ _ 1 _ (by omega) (by grind)]
+            grind
+  | abs xs hx ih => cases hyz with
+    | base hyz => cases hyz
+    | abs ys hy =>
+      rename_i _ _ N
       have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-      specialize h x (by grind)
-      obtain ⟨w, hw1, hw2⟩ := ih x (by grind) (ihh x (by grind))
-      have : w.LC := by cases hw1 <;> apply FullBeta.step_lc_r <;> assumption
-      refine ⟨(w.close x).abs,
-                FullBeta.steps_abs_cong (y.fv ∪ z.fv ∪ M.fv ∪ M'.fv ∪ xs ∪ N.fv ∪ ys) ?_, ?_⟩
+      obtain ⟨w, hw1, hw2⟩ := ih x (by grind) (hy x (by grind))
+      refine ⟨(w.close x).abs, FullBeta.steps_abs_cong (free_union [fv] Var) ?_, ?_⟩
       · intros c hc
         unfold close open'
         rw [close_openRec_to_subst]
@@ -85,26 +85,8 @@ theorem WeakPostpone_fullBeta_fullEta :
           rw [subst_open, subst_fvar] at g <;> grind
         · cases hw1 <;> apply FullBeta.step_lc_r <;> assumption
         · grind
-      · rw [open_close_var x M' (by grind)]
+      · rw [open_close_var x N (by grind)]
         exact FullEta.steps_abs_close hw2
-  | appL _ h ih => cases hxy with
-    | appL h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
-                    exact ⟨_, FullBeta.transgen_app_r h1 hw1, FullEta.redex_app_r_cong hw2 h1⟩
-    | appR _ h2 => exact ⟨_, FullBeta.transgen_app_r (FullEta.step_lc_l h2) (.single h),
-                             FullEta.redex_app_l_cong (.single h2) (FullBeta.step_lc_r h)⟩
-    | base hxy => cases hxy with | eta hxy => cases hxy with | app zlc mlc =>
-      refine ⟨_, .single (.abs ∅ (fun x hx => Xi.appR (by grind) (Xi.appL (by grind) ?_))),
-                 .single (.base (.eta (.app zlc (FullBeta.step_lc_r h))))⟩
-      rw [open_lc, open_lc] <;> grind [FullBeta.step_lc_r]
-  | appR _ h ih => cases hxy with
-    | base hxy => cases hxy with | eta hxy => cases hxy with | app mlc zlc =>
-      refine ⟨_, .single (.abs ∅ (fun x hx => Xi.appR (by grind) (Xi.appR (by grind) ?_))),
-                 .single (.base (.eta (.app (FullBeta.step_lc_r h) zlc)))⟩
-      rw [open_lc, open_lc] <;> grind [FullBeta.step_lc_r]
-    | appL _ h2 => exact ⟨_, FullBeta.transgen_app_l (FullEta.step_lc_l h2) (.single h),
-                             FullEta.redex_app_r_cong (.single h2) (FullBeta.step_lc_r h)⟩
-    | appR h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
-                    exact ⟨_, FullBeta.transgen_app_l h1 hw1, FullEta.redex_app_l_cong hw2 h1⟩
 
 theorem Etastar_hasBetaNF {P Q : Term Var}
     (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
