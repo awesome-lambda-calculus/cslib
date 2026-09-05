@@ -248,6 +248,22 @@ instance (t : Term Var) : Decidable (Relation.Normal FullBeta t) := by
   unfold BetaNormal
   infer_instance
 
+theorem step_eta_preserves_normal_beta :
+  Relation.Preserves (FullEta (Var := Var)) (Relation.Normal FullBeta) := by
+  rintro _ _ step hP
+  rw [<- betanormal_iff] at *
+  left
+  rcases hP with _|_
+  · grind [eta_countredex step]
+  · grind [FullEta.step_lc_l step]
+
+theorem steps_eta_preserves_normal_beta :
+  Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (Relation.Normal FullBeta) := by
+  intros _ _ steps _
+  induction steps with
+  | refl => grind
+  | tail _ step ih => grind [step_eta_preserves_normal_beta step ih]
+
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
 end Cslib
