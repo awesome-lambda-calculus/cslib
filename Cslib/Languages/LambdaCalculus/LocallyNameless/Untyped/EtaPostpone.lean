@@ -126,10 +126,10 @@ theorem eta_beta_postpone :
 The proof uses strong η-postponement: a single parallel η-step is an η-reduction
 `P ↠η Q`, so any β-step `Q ⟶β R` would give, by `eta_beta_postpone`, a non-empty
 β-reduction `P ⟶β⁺ ⋯`, contradicting β-normality of `P`. -/
-theorem Etastar_normal {P Q : Term Var}
-  (h : P ↠ηᶠ Q) (hP : Relation.Normal FullBeta P) : Relation.Normal FullBeta Q := by
-  rintro ⟨_, hR⟩
-  obtain ⟨y, hy, _⟩ := eta_beta_postpone h (.single hR)
+theorem etastar_preserves_normal_beta :
+  Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (Relation.Normal FullBeta) := by
+  rintro _ _ steps hP ⟨_, hR⟩
+  obtain ⟨y, hy, _⟩ := eta_beta_postpone steps (.single hR)
   apply hP
   rw [Relation.TransGen.head'_iff] at hy
   grind
@@ -143,7 +143,7 @@ theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
     obtain ⟨z, hz, hnormal⟩:= Relation.SN.normalizable (FullEta.wellFoundedFullEta.apply y)
     refine ⟨z, .trans (Relation.ReflTransGen.mono le_sup_left _ _ hy)
                       (Relation.ReflTransGen.mono le_sup_right _ _ hz), ?_⟩
-    have := Etastar_normal hz hbeta
+    have := etastar_preserves_normal_beta hz hbeta
     rintro ⟨_, h⟩
     cases h <;> grind
   · rintro ⟨y, hy, hbetaetanormal⟩
