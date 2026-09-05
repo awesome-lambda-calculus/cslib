@@ -7,6 +7,7 @@ Authors: Maximiliano Onofre Martínez
 module
 
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.CallByName
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 
 /-! # Redex Positions
 
@@ -150,6 +151,21 @@ lemma BetaAt.to_step [DecidableEq Var] (h : BetaAt i M N) (lc : LC M) : M ⭢β�
       exact ih z (by grind) (h_body z (by grind))
 
 variable [HasFresh Var]
+
+lemma eta_countredex (step : M ⭢ηᶠ M') : countRedexes M' ≤ countRedexes M := by
+  induction step with
+  | base step => cases step with | eta h_lc =>
+      simp only [countRedexes]
+      grind [countRedexes_app_le]
+  | appL h_lc _ _ => cases h_lc <;> grind
+  | appR _ step _ => cases step with
+    | base step => cases step with | eta h_lc => cases h_lc <;> grind
+    | appL _ _ => grind
+    | appR _ _ => grind
+    | abs xs _ => grind
+  | abs xs _ _ =>
+    have := fresh_exists xs
+    grind [countRedexes_open_fvar]
 
 lemma BetaAt.lt_countRedexes (h : BetaAt i M N) : i < countRedexes M := by
   induction h with
