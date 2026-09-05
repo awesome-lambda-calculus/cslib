@@ -192,9 +192,10 @@ theorem acc_cong {α : Sort u} {r s : α → α → Prop}
       rw [<- hrel] at hsz
       exact ih z hsz
 
-lemma sn_eta_step [DecidableEq Var] [HasFresh Var]
-  (t_st_t' : t ↠ηᶠ t') (sn_t : SN FullBeta t) : SN FullBeta t' :=
-    sn_eta_steps t_st_t' (SN.transGen sn_t)
+lemma sn_eta_step [DecidableEq Var] [HasFresh Var] :
+  Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (SN FullBeta) := by
+    intros _ _ steps sn_t
+    exact sn_eta_steps steps (SN.transGen sn_t)
 
 /-- **η-expansion preserves β-strong-normalisation (single step).**  If
 `t ⟶η t'` (one η-step) and `t'` is β-strongly-normalising, then so is `t`. -/
@@ -207,8 +208,11 @@ theorem sn_eta_steps_inv [DecidableEq Var] [HasFresh Var]
     induction t_st_t' with grind [sn_eta_step_inv]
 
 theorem sn_eta_steps_iff [DecidableEq Var] [HasFresh Var]
-  (t_st_t' : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' := by
-   grind [sn_eta_step, sn_eta_steps_inv]
+  (steps : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' := by
+  constructor
+  · intro h
+    exact sn_eta_step steps h
+  · grind [sn_eta_steps_inv]
 
 /-!
 # βη strong normalisation equals β strong normalisation
@@ -230,8 +234,6 @@ proved here *not* via a term-size measure (which is known to fail for absorbed
 using the strong single-step postponement lemma `eta_beta_postpone`.
 -/
 
-
-open Term Relation
 
 /-! ## Generic accessibility conversions between a relation and its transitive closure -/
 
