@@ -39,7 +39,7 @@ def WeakPostpone (A B : α → α → Prop) : Prop :=
   ∀ ⦃x y z⦄, B x y → A y z →
     ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
 
-def WeakWeakPostpone (A B : α → α → Prop) : Prop :=
+def WeakPlusPostpone (A B : α → α → Prop) : Prop :=
   ∀ ⦃x y z⦄, B x y → Relation.TransGen A y z →
     ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
 
@@ -51,7 +51,7 @@ non-empty `A`-sequence followed by a `B`-star.
 theorem single_over_plus
   (hW : LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
   (hL : WeakPostpone A B) :
-  WeakWeakPostpone A B := by
+  WeakPlusPostpone A B := by
   intros x y z hxy hyz
   induction hyz with
   | single hyz => exact hL hxy hyz
@@ -71,7 +71,8 @@ theorem star_over_plus
   induction hab generalizing c with
   | refl => exact ⟨ c, hbc, by rfl ⟩
   | tail _ hB hA =>
-    exact single_over_plus hW hL hB hbc |> fun ⟨ w, hw₁, hw₂ ⟩ => hA hw₁ |> fun ⟨ x, hx₁, hx₂ ⟩ => ⟨ x, hx₁, hx₂.trans hw₂ ⟩
+    exact single_over_plus hW hL hB hbc |> fun ⟨w, hw₁, hw₂⟩ => hA hw₁
+                                        |> fun ⟨x, hx₁, hx₂⟩ => ⟨x, hx₁, hx₂.trans hw₂⟩
 
 theorem postpone_a (h : LocalPostpone A B) :
    LocalPostpone (Relation.ReflTransGen A) B := by
