@@ -70,13 +70,14 @@ theorem ParEta.refl {M : Term Var} (h : LC M) : ParEta M M := by
   | abs xs t _ ih => exact ParEta.abs xs ih
   | app _ _ ihM ihN => exact ParEta.app ihM ihN
 
-theorem ParEta.fromFullEta {M N : Term Var} (h : M ⭢ηᶠ N) : ParEta M N := by
-  induction h with
+theorem FullEta.le_parallel : (· ⭢ηᶠ ·) ≤ (ParEta : Term Var → Term Var → Prop) := by
+  intro M N step
+  induction step with
   | base h => cases h
-              apply ParEta.eta <;> grind
-  | appL _ _ _ => apply ParEta.app <;> grind
-  | appR _ _ _ => apply ParEta.app <;> grind
-  | abs xs _ ih => apply ParEta.abs xs ih
+              exact ParEta.eta (by assumption) (ParEta.refl (by assumption))
+  | appL _ _ _ => exact ParEta.app (ParEta.refl (by assumption)) (by assumption)
+  | appR _ _ _ => exact ParEta.app (by assumption) (ParEta.refl (by assumption))
+  | abs xs _ ih => exact ParEta.abs xs ih
 
 @[scoped grind ->]
 theorem ParEta.step_lc_r {M N : Term Var} (h : ParEta M N) : LC N := by
@@ -96,9 +97,10 @@ theorem ParEta.step_lc_l [HasFresh Var]
   | @eta M M' hM _ ih => exact LC.abs ∅ _ fun x _ => LC.app (by grind) (by grind)
 
 /-- A single parallel η-step is a sequence of full η-steps. -/
-theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
-  {M N : Term Var} (h : ParEta M N) : M ↠ηᶠ N := by
-  induction h with
+theorem ParEta.le_reflTransGen_fullEta [DecidableEq Var] [HasFresh Var] :
+  (ParEta : Term Var → Term Var → Prop) ≤ (· ↠ηᶠ ·) := by
+  intro M N para
+  induction para with
   | fvar x => exact Relation.ReflTransGen.refl
   | eta hM hMM' ih => exact .head (Xi.base (.eta hM)) ih
   | @app M M' N N' hM hN ihM ihN =>
@@ -106,11 +108,11 @@ theorem ParEta.toFullEtaStar [DecidableEq Var] [HasFresh Var]
                                         (FullEta.redex_app_r_cong ihN ((ParEta.step_lc_r hM)))
   | abs xs h ih => exact FullEta.redex_abs_cong xs ih
 
-theorem paraEtachain_iff_redex [DecidableEq Var] [HasFresh Var]
-  {M N : Term Var} : Relation.ReflTransGen ParEta M N ↔ M ↠ηᶠ N := by
-  refine Iff.intro ?chain_redex ?redex_chain <;> intros h <;> induction h <;> try rfl
-  case redex_chain redex chain => exact Relation.ReflTransGen.tail chain (ParEta.fromFullEta redex)
-  case chain_redex para redex => exact Relation.ReflTransGen.trans redex (ParEta.toFullEtaStar para)
+theorem reflTransGen_parallel_fullEta [DecidableEq Var] [HasFresh Var]
+   : (Relation.ReflTransGen ParEta : Term Var → Term Var → Prop) = (· ↠ηᶠ ·) := by
+  apply le_antisymm
+  · exact reflTransGen_le_of_le ParEta.le_reflTransGen_fullEta
+  · exact ReflTransGen.mono FullEta.le_parallel
 
 /-
 Substitutivity of parallel η-reduction.
