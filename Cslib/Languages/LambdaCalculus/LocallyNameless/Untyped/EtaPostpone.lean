@@ -30,37 +30,42 @@ universe u
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
+open Relation Function
+
 variable {Var : Type u} [DecidableEq Var] [HasFresh Var]
 
 /-! ## The strong local commutation property -/
 
 theorem WeakPostpone_fullBeta_fullEta :
-    WeakPostpone (FullBeta (Var := Var)) (FullEta (Var := Var)) := by
-  intros x y z hxy hyz
-  induction hxy generalizing z with
-  | base hxy => cases hxy with | eta hxy =>
-  refine ⟨Term.abs (z.app (bvar 0)),
-          FullBeta.steps_abs_cong ∅ (fun x hx => FullBeta.transgen_app_l (by grind) (.single ?_)),
-          .single (.base (.eta (FullBeta.step_lc_r hyz)))⟩
-  rw [open_lc _ _ _ hxy, open_lc _ _ _ (FullBeta.step_lc_r hyz)]
+    WeakPostpone (swap (FullEta (Var := Var))) (FullBeta (Var := Var)) := by
+  intros x y z hβ hη
+  induction hη generalizing y with
+  | base hη => cases hη with | eta hη =>
+  refine ⟨Term.abs (y.app (bvar 0)),
+          .single (.base (.eta (FullBeta.step_lc_r hβ))),
+          FullBeta.steps_abs_cong ∅ (fun x hx => FullBeta.transgen_app_l (by grind) (.single ?_))⟩
+  rw [open_lc _ _ _ hη, open_lc _ _ _ (FullBeta.step_lc_r hβ)]
   grind
-  | appL _ h ih => cases hyz with
-    | base hyz => cases hyz with | beta hm hn =>
-      exact ⟨_, .single (.base (.beta hm (FullEta.step_lc_l h))), FullEta.step_open_cong_r hm h⟩
+  | appL _ h ih => cases hβ with
+    | base hβ => cases hβ with | beta hm hn =>
+      exact ⟨_, FullEta.step_open_cong_r hm h, .single (.base (.beta hm (FullEta.step_lc_l h)))⟩
     | appL h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
                     exact ⟨_, FullBeta.transgen_app_r h1 hw1, FullEta.redex_app_r_cong hw2 h1⟩
     | appR _ h2 =>  exact ⟨_, .single (.appR (FullEta.step_lc_l h) h2),
                               .single (.appL (FullBeta.step_lc_r h2) h)⟩
-  | appR _ h ih => cases hyz with
+  | appR _ h ih => cases hβ with
     | appL _ h2 => exact ⟨_, .single (.appL (FullEta.step_lc_l h) h2),
                              .single (.appR (FullBeta.step_lc_r h2) h)⟩
     | appR h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
                     exact ⟨_, FullBeta.transgen_app_l h1 hw1, FullEta.redex_app_l_cong hw2 h1⟩
-    | base hyz => cases hyz with | beta hm hz => cases h with
+    | base hβ => cases hβ with | beta hm hz => cases h with
       | abs xs h => exact ⟨_, .single (.base (.beta (FullEta.step_lc_l (Xi.abs xs h)) hz)),
                               FullEta.steps_open_cong_l xs (by grind) hz⟩
       | base h => cases h with | eta h =>
-          refine ⟨_, .head (.base (.beta ?_ hz)) (.single (.base (.beta ?_ (by grind)))), ?_⟩
+          refine ⟨_, ?_, .head (.base (.beta ?_ hz)) (.single (.base (.beta ?_ (by grind))))⟩
+          · rw [<- lcAt_iff_LC] at *
+            rw [lcAt_openRec_above_lcAt _ _ 1 _ (by omega) (by grind)]
+            grind
           · rw [<- lcAt_iff_LC] at *
             simp_all only [LcAt, zero_add, Order.lt_one_iff, decide_true, Bool.and_true]
             apply lcAt_le _ _ _ (by omega) hm
@@ -68,25 +73,23 @@ theorem WeakPostpone_fullBeta_fullEta :
             simp_all only [LcAt, zero_add]
             rw [lcAt_openRec_iff_lcAt _ _ _ (lcAt_le _ _ _ (by omega) hz)]
             apply lcAt_le _ _ _ (by omega) hm
-          · rw [<- lcAt_iff_LC] at *
-            rw [lcAt_openRec_above_lcAt _ _ 1 _ (by omega) (by grind)]
-            grind
-  | abs xs hx ih => cases hyz with
-    | base hyz => cases hyz
+  | abs xs hx ih => cases hβ with
+    | base hβ => cases hβ
     | abs ys hy =>
       rename_i _ _ N
       have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
       obtain ⟨w, hw1, hw2⟩ := ih x (by grind) (hy x (by grind))
-      refine ⟨(w.close x).abs, FullBeta.steps_abs_cong (free_union [fv] Var) ?_, ?_⟩
+      refine ⟨(w.close x).abs, ?_, FullBeta.steps_abs_cong (free_union [fv] Var) ?_⟩
+      · rw [open_close_var x N (by grind)]
+        rw [reflTransGen_swap] at *
+        exact FullEta.steps_abs_close hw1
       · intros c hc
         unfold close open'
         rw [close_openRec_to_subst]
-        · have g := FullBeta.steps_subst_cong_l _ _ (fvar c) x hw1 (by grind)
+        · have g := FullBeta.steps_subst_cong_l _ _ (fvar c) x hw2 (by grind)
           rw [subst_open, subst_fvar] at g <;> grind
-        · cases hw1 <;> apply FullBeta.step_lc_r <;> assumption
+        · cases hw2 <;> apply FullBeta.step_lc_r <;> assumption
         · grind
-      · rw [open_close_var x N (by grind)]
-        exact FullEta.steps_abs_close hw2
 
 theorem Etastar_hasBetaNF {P Q : Term Var}
     (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
