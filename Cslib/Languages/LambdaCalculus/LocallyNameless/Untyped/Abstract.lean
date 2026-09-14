@@ -34,13 +34,24 @@ open Relation
 variable {α : Type*} {r₁ r₂ : α → α → Prop}
 
 abbrev WeakPostpone (r₁ r₂ : α → α → Prop) : Prop :=
-  ∀ ⦃x y₁ y₂⦄, r₁ x y₁ → r₂ x y₂  →
+  ∀ ⦃x y₁ y₂⦄, r₁ x y₁ → r₂ x y₂ →
     ∃ z, ReflTransGen r₂ y₁ z ∧ TransGen r₁ y₂ z
 
 abbrev WeakPlusPostpone (r₁ r₂ : α → α → Prop) : Prop :=
-  ∀ ⦃x y₁ y₂⦄, TransGen r₁ x y₁ → r₂ x y₂  →
+  ∀ ⦃x y₁ y₂⦄, TransGen r₁ x y₁ → r₂ x y₂ →
     ∃ z, ReflTransGen r₂ y₁ z ∧ TransGen r₁ y₂ z
 
+-- SemiCommute.to_commute
+theorem star_over_plus
+  (hL : WeakPlusPostpone r₁ r₂) :
+  DiamondCommute (TransGen r₁) (ReflTransGen r₂) := by
+  intro q p r hB hA
+  induction hA generalizing p with
+  | refl => exact ⟨p, .refl, hB⟩
+  | tail _ b_step ih =>
+    obtain ⟨s, hs₁, hs₂⟩ := ih hB
+    obtain ⟨w, hw₁, hw₂⟩ := hL hs₂ b_step
+    exact ⟨w, hs₁.trans hw₁, hw₂⟩
 
 theorem single_over_plus
   (hW : DiamondCommute (ReflTransGen r₁) (ReflTransGen r₂))
@@ -53,19 +64,6 @@ theorem single_over_plus
     obtain ⟨w, hw₁, hw₂⟩ := h₃
     obtain ⟨s, hs₁, hs₂⟩ := hW (.single h₂) hw₁
     exact ⟨s, hs₁, hw₂.trans_left hs₂⟩
-
-theorem star_over_plus
-  (hW : DiamondCommute (ReflTransGen r₁) (ReflTransGen r₂))
-  (hL : WeakPostpone r₁ r₂) :
-  DiamondCommute (TransGen r₁) (ReflTransGen r₂) := by
-  have hP : WeakPlusPostpone r₁ r₂ := single_over_plus hW hL
-  intro q p r hB hA
-  induction hA generalizing p with
-  | refl => exact ⟨p, .refl, hB⟩
-  | tail _ b_step ih =>
-    obtain ⟨s, hs₁, hs₂⟩ := ih hB
-    obtain ⟨w, hw₁, hw₂⟩ := hP hs₂ b_step
-    exact ⟨w, hs₁.trans hw₁, hw₂⟩
 
 /-
 --  DiamondCommute.diamond_commute_reflTransGen_left
