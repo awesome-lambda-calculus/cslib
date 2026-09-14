@@ -10,6 +10,8 @@ module
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.NormalBeta
+public import Cslib.Foundations.Relation.Attr
+public import Cslib.Foundations.Relation.Defs
 
 /-!
 # Parallel η-reduction and Takahashi's Lemma 3.7
@@ -41,6 +43,8 @@ namespace Cslib
 universe u
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
+
+open Relation Function
 
 variable {Var : Type u}
 
@@ -436,16 +440,18 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
 **Lemma 3.4.**  A parallel η-step postpones over a parallel β-step:
 `M ⟹η P ⟹β N` implies `M ⟹β P' ⟹η N` for some `P'`.
 -/
-theorem parEta_parBeta_postpone : LocalPostpone (Parallel (Var := Var)) ParEta := by
-  intros M N P hη hβ
+theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Parallel := by
+  intros P M N hη hβ
   induction hβ generalizing M with
-  | fvar x =>  grind +suggestions
+  | fvar x => unfold Join₂
+              grind +suggestions
   | app _ _ ih1 ih2 =>
     obtain ⟨ k, M1, M2, rfl, hM1, hM2 ⟩ := parEta_inv_app hη
     obtain ⟨ P1, hP1, hP1' ⟩ := ih1 hM1
     obtain ⟨ P2, hP2, hP2' ⟩ := ih2 hM2
-    use etaExp^[k] (app P1 P2)
-    exact ⟨parBeta_etaExp_congr (Parallel.app hP1 hP2) k, parEta_etaExp (ParEta.app hP1' hP2') k⟩
+    exact ⟨ etaExp^[k] (app P1 P2),
+            parBeta_etaExp_congr (Parallel.app hP1 hP2) k,
+            parEta_etaExp (ParEta.app hP1' hP2') k ⟩
   | abs xs hβ ih =>
     rename_i xs M M'
     obtain ⟨ k, M0, xs2, rfl, hM0 ⟩ := parEta_inv_abs hη
@@ -526,8 +532,7 @@ theorem parEta_hasBetaNF {P Q : Term Var}
                           cases hQN with
                           | inl _ => grind
                           | inr hQN =>  subst Q
-                                        apply ParEta.step_lc_r at h
-                                        grind
+                                        grind [ParEta.step_lc_r h]
   simp only [<- reflTransGen_parallel_fullBeta] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
   obtain ⟨P', hPP', hP'N⟩ := postpone_a parEta_parBeta_postpone h hQN
