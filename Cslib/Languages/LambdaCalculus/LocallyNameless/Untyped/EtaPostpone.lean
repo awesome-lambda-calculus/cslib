@@ -7,6 +7,7 @@ Authors: Yijun Leng
 
 module
 
+public import Cslib.Foundations.Relation.Confluence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEta
@@ -98,33 +99,29 @@ theorem WeakPostpone_fullBeta_fullEta :
         · cases hw2 <;> apply FullBeta.step_lc_r <;> assumption
         · grind
 
-theorem localpostpone_Beta_Eta :
-  DiamondCommute (ReflTransGen (swap FullEta)) (ReflTransGen (FullBeta (Var := Var))) := by
-  intros _ _ _ heta hbeta
-  simp only [<- reflTransGen_parallel_fullBeta] at hbeta
-  rw [reflTransGen_swap] at heta
-  rw [<- paraEtachain_iff_redex] at heta
-  rw [<- reflTransGen_swap] at heta
-  obtain ⟨s, _, _⟩ := DiamondCommute.to_commute (r₁ := (swap (ParEta (Var := Var)))) (r₂ := Parallel) parEta_parBeta_postpone heta hbeta
-  use s
-  simp_all [<- reflTransGen_parallel_fullBeta, <- paraEtachain_iff_redex]
-  sorry
+theorem localpostpone_Beta_Eta : Commute (swap FullEta) (FullBeta (Var := Var)) := by
+  intros _ _ _ hη hβ
+  simp only [<- reflTransGen_parallel_fullBeta] at hβ
+  rw [reflTransGen_swap] at hη
+  simp only [<-  reflTransGen_parallel_fullEta] at hη
+  rw [<- reflTransGen_swap] at hη
+  obtain ⟨s, _, g⟩ := DiamondCommute.to_commute parEta_parBeta_postpone hη hβ
+  refine ⟨s, ?_, ?_⟩
+  · simp_all [<- reflTransGen_parallel_fullBeta]
+  · rw [reflTransGen_swap] at *
+    exact reflTransGen_le_of_le ParEta.le_reflTransGen_fullEta _ _ g
 
 theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
     ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
-  induction h with
-  | refl => exists M
-  | tail _ h ih =>
-      obtain ⟨L, hbeta, heta⟩ := ih
-      cases h with
-      | inl h =>  obtain ⟨P, hpbeta, hpeta⟩ := localpostpone_fullBeta_fullEta heta (.single h)
-                  exact ⟨P, .trans hbeta hpbeta, hpeta⟩
-      | inr _ => grind
+  have g := (commute_equivalents.out 2 4 rfl rfl).mp (localpostpone_Beta_Eta (Var := Var)) N M
+  rw [sup_comm, reflTransGen_swap] at g
+  obtain ⟨L, g, _⟩ := g h
+  rw [reflTransGen_swap] at g
+  grind
 
 theorem eta_beta_postpone :
-    LocalPostpone (Relation.TransGen (FullBeta (Var := Var))) (Relation.ReflTransGen FullEta) := by
-  intros _ _ _ heta hbeta
-  exact star_over_plus localpostpone_fullBeta_fullEta WeakPostpone_fullBeta_fullEta heta hbeta
+    DiamondCommute (ReflTransGen (swap FullEta)) (TransGen (FullBeta (Var := Var))) :=
+  star_over_plus _ _ (single_over_plus _ _ localpostpone_Beta_Eta WeakPostpone_fullBeta_fullEta)
 
 /-- **Takahashi's Lemma 3.7.**  If `P ⟹_η Q` (parallel η-reduction) and `P` is a
 β-normal form, then `Q` is a β-normal form.
@@ -135,6 +132,7 @@ The proof uses strong η-postponement: a single parallel η-step is an η-reduct
 theorem etastar_preserves_normal_beta :
   Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (Relation.Normal FullBeta) := by
   rintro _ _ steps hP ⟨_, hR⟩
+  rw [reflTransGen_swap] at steps
   obtain ⟨y, hy, _⟩ := eta_beta_postpone steps (.single hR)
   apply hP
   rw [Relation.TransGen.head'_iff] at hy
@@ -144,26 +142,26 @@ theorem Etastar_hasBetaNF {P Q : Term Var}
     (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
   induction h with
   | refl => grind
-  | tail _ h ih => exact ih (parEta_hasBetaNF (ParEta.fromFullEta h) hQ)
+  | tail _ h ih => exact ih (parEta_hasBetaNF (FullEta.le_parallel _ _ h) hQ)
 
 /-- **A term has a βη-normal form ⇔ it has a β-normal form.** -/
 theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
   Relation.Normalizable FullBeta t ↔ Relation.Normalizable FullBetaEta t := by
   constructor
-  · rintro ⟨y, hy, hbeta⟩
+  · rintro ⟨y, hy, hβ⟩
     obtain ⟨z, hz, hnormal⟩:= Relation.SN.normalizable (FullEta.wellFoundedFullEta.apply y)
     refine ⟨z, .trans (Relation.ReflTransGen.mono le_sup_left _ _ hy)
                       (Relation.ReflTransGen.mono le_sup_right _ _ hz), ?_⟩
-    have := etastar_preserves_normal_beta hz hbeta
+    have := etastar_preserves_normal_beta hz hβ
     rintro ⟨_, h⟩
     cases h <;> grind
-  · rintro ⟨y, hy, hbetaetanormal⟩
-    obtain ⟨L, hbeta, heta⟩ := eta_postponement hy
-    rw [FullBetaEta.normal_fullbeta_iff] at hbetaetanormal
-    obtain ⟨_, _⟩ := hbetaetanormal
+  · rintro ⟨y, hy, hβetanormal⟩
+    obtain ⟨L, hβ, hη⟩ := eta_postponement hy
+    rw [FullBetaEta.normal_fullbeta_iff] at hβetanormal
+    obtain ⟨_, _⟩ := hβetanormal
     have h : Relation.Normalizable FullBeta y := by exists y
-    obtain ⟨W, hw, hnormal⟩ := Etastar_hasBetaNF heta h
-    exact ⟨W, .trans hbeta hw, hnormal⟩
+    obtain ⟨W, hw, hnormal⟩ := Etastar_hasBetaNF hη h
+    exact ⟨W, .trans hβ hw, hnormal⟩
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
