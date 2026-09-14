@@ -14,13 +14,13 @@ public import Cslib.Foundations.Relation.Confluence
 /-!
 # Abstract postponement lemma
 
-r₁ purely relational lemma: if a single `r₂`-step followed by a single `r₁`-step
-can be reorganized into a single `r₁`-step followed by a (reflexive-transitive)
-sequence of `r₂`-steps, then in any mixed `r₁`/`r₂` reduction sequence all the
-`r₂`-steps can be postponed to the end.
+r₂ purely relational lemma: if a single `r₁`-step followed by a single `r₂`-step
+can be reorganized into a single `r₂`-step followed by a (reflexive-transitive)
+sequence of `r₁`-steps, then in any mixed `r₂`/`r₁` reduction sequence all the
+`r₁`-steps can be postponed to the end.
 
 This is the abstract heart of η-postponement, instantiated later with
-`r₁ := parallel β-reduction` and `r₂ := η-reduction`.
+`r₂ := parallel β-reduction` and `r₁ := η-reduction`.
 -/
 
 @[expose] public section
@@ -31,30 +31,30 @@ namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
 open Relation
 
-variable {α : Type*} {r₁ r₂ : α → α → Prop}
+variable {α : Type*}
 
 abbrev WeakPostpone (r₁ r₂ : α → α → Prop) : Prop :=
-  ∀ ⦃x y₁ y₂⦄, r₁ x y₁ → r₂ x y₂ →
-    ∃ z, ReflTransGen r₂ y₁ z ∧ TransGen r₁ y₂ z
+  ∀ ⦃x y₁ y₂⦄, r₂ x y₁ → r₁ x y₂ →
+    ∃ z, ReflTransGen r₁ y₁ z ∧ TransGen r₂ y₂ z
 
 abbrev WeakPlusPostpone (r₁ r₂ : α → α → Prop) : Prop :=
-  ∀ ⦃x y₁ y₂⦄, TransGen r₁ x y₁ → r₂ x y₂ →
-    ∃ z, ReflTransGen r₂ y₁ z ∧ TransGen r₁ y₂ z
+  ∀ ⦃x y₁ y₂⦄, TransGen r₂ x y₁ → r₁ x y₂ →
+    ∃ z, ReflTransGen r₁ y₁ z ∧ TransGen r₂ y₂ z
 
 -- SemiCommute.to_commute
-theorem star_over_plus
-  (hL : WeakPlusPostpone r₁ r₂) :
-  DiamondCommute (TransGen r₁) (ReflTransGen r₂) := by
+theorem star_over_plus (r₁ r₂ : α → α → Prop)
+  (h : WeakPlusPostpone r₁ r₂) :
+  DiamondCommute (ReflTransGen r₁) (TransGen r₂) := by
   intro q p r hB hA
-  induction hA generalizing p with
-  | refl => exact ⟨p, .refl, hB⟩
+  induction hB generalizing r with
+  | refl => exact ⟨r, hA, .refl⟩
   | tail _ b_step ih =>
-    obtain ⟨s, hs₁, hs₂⟩ := ih hB
-    obtain ⟨w, hw₁, hw₂⟩ := hL hs₂ b_step
-    exact ⟨w, hs₁.trans hw₁, hw₂⟩
+    obtain ⟨s, hs₁, hs₂⟩ := ih hA
+    obtain ⟨w, hw₁, hw₂⟩ := h hs₁ b_step
+    exact ⟨w, hw₂, hs₂.trans hw₁⟩
 
-theorem single_over_plus
-  (hW : DiamondCommute (ReflTransGen r₁) (ReflTransGen r₂))
+theorem single_over_plus (r₁ r₂ : α → α → Prop)
+  (hW : Commute r₁ r₂)
   (hL : WeakPostpone r₁ r₂) :
   WeakPlusPostpone r₁ r₂ := by
   intros x y z hxy hyz
@@ -62,36 +62,8 @@ theorem single_over_plus
   | single hxy => exact hL hxy hyz
   | tail h₁ h₂ h₃ =>
     obtain ⟨w, hw₁, hw₂⟩ := h₃
-    obtain ⟨s, hs₁, hs₂⟩ := hW (.single h₂) hw₁
-    exact ⟨s, hs₁, hw₂.trans_left hs₂⟩
-
-/-
---  DiamondCommute.diamond_commute_reflTransGen_left
-theorem postpone_a (h : DiamondCommute r₂ r₁) :
-   DiamondCommute r₂ (Relation.ReflTransGen r₁) := by
-  intro q p r hB hA
-  induction hA generalizing p with
-  | refl => exact ⟨p, .refl, hB⟩
-  | tail _ a_step ih =>
-    obtain ⟨s, hs₁, hs₂⟩ := ih hB
-    obtain ⟨w, hw₁, hw₂⟩ := h hs₂ a_step
-    exact ⟨w, hs₁.tail hw₁, hw₂⟩
-
--- unused
-theorem postpone_b (h : DiamondCommute r₂ r₁) :
-   DiamondCommute (Relation.ReflTransGen r₂) r₁ := by
-  intro q p r hB hA
-  induction hB generalizing r with
-  | refl => exact ⟨r, hA, .refl⟩
-  | tail _ b_step ih =>
-    obtain ⟨s, hs₁, hs₂⟩ := ih hA
-    obtain ⟨w, hw₁, hw₂⟩ := h b_step hs₁
-    exact ⟨w, hw₁, hs₂.tail hw₂⟩
-
-theorem postpone_ab (h : DiamondCommute r₂ r₁) :
-   DiamondCommute (Relation.ReflTransGen r₂) (Relation.ReflTransGen r₁) :=
-   DiamondCommute.to_commute h
--/
+    obtain ⟨s, hs₁, hs₂⟩ := hW hw₁ (.single h₂)
+    exact ⟨s, hs₂, hw₂.trans_left hs₁⟩
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
