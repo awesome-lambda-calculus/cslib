@@ -88,11 +88,11 @@ theorem postpone_b (h : DiamondCommute r₂ r₁) :
     obtain ⟨s, hs₁, hs₂⟩ := ih hA
     obtain ⟨w, hw₁, hw₂⟩ := h b_step hs₁
     exact ⟨w, hw₁, hs₂.tail hw₂⟩
--/
 
 theorem postpone_ab (h : DiamondCommute r₂ r₁) :
    DiamondCommute (Relation.ReflTransGen r₂) (Relation.ReflTransGen r₁) :=
    DiamondCommute.to_commute h
+-/
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
