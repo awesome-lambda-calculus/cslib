@@ -33,38 +33,39 @@ open Relation
 
 variable {α : Type*} {r₁ r₂ : α → α → Prop}
 
-def WeakPostpone (r₁ r₂ : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, r₂ y x → r₁ y z →
-    ∃ w, TransGen r₁ x w ∧ ReflTransGen r₂ z w
+abbrev WeakPostpone (r₁ r₂ : α → α → Prop) : Prop :=
+  ∀ ⦃x y₁ y₂⦄, r₁ x y₁ → r₂ x y₂  →
+    ∃ z, ReflTransGen r₂ y₁ z ∧ TransGen r₁ y₂ z
 
-def WeakPlusPostpone (r₁ r₂ : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, r₂ y x → Relation.TransGen r₁ y z →
-    ∃ w, Relation.TransGen r₁ x w ∧ ReflTransGen r₂ z w
+abbrev WeakPlusPostpone (r₁ r₂ : α → α → Prop) : Prop :=
+  ∀ ⦃x y₁ y₂⦄, TransGen r₁ x y₁ → r₂ x y₂  →
+    ∃ z, ReflTransGen r₂ y₁ z ∧ TransGen r₁ y₂ z
 
 
 theorem single_over_plus
-  (hW : DiamondCommute (Relation.ReflTransGen r₁) (Relation.ReflTransGen r₂))
+  (hW : DiamondCommute (ReflTransGen r₁) (ReflTransGen r₂))
   (hL : WeakPostpone r₁ r₂) :
   WeakPlusPostpone r₁ r₂ := by
   intros x y z hxy hyz
-  induction hyz with
-  | single hyz => exact hL hxy hyz
+  induction hxy with
+  | single hxy => exact hL hxy hyz
   | tail h₁ h₂ h₃ =>
     obtain ⟨w, hw₁, hw₂⟩ := h₃
-    exact Exists.elim (hW (.single h₂) hw₂) fun s hs => ⟨s, hw₁.trans_left hs.2, hs.1⟩
+    obtain ⟨s, hs₁, hs₂⟩ := hW (.single h₂) hw₁
+    exact ⟨s, hs₁, hw₂.trans_left hs₂⟩
 
 theorem star_over_plus
-  (hW : DiamondCommute (Relation.ReflTransGen r₁) (Relation.ReflTransGen r₂))
+  (hW : DiamondCommute (ReflTransGen r₁) (ReflTransGen r₂))
   (hL : WeakPostpone r₁ r₂) :
-  DiamondCommute (Relation.TransGen r₁) (Relation.ReflTransGen r₂) := by
+  DiamondCommute (TransGen r₁) (ReflTransGen r₂) := by
   have hP : WeakPlusPostpone r₁ r₂ := single_over_plus hW hL
   intro q p r hB hA
   induction hA generalizing p with
   | refl => exact ⟨p, .refl, hB⟩
   | tail _ b_step ih =>
     obtain ⟨s, hs₁, hs₂⟩ := ih hB
-    obtain ⟨w, hw₁, hw₂⟩ := hP b_step hs₂
-    exact ⟨w, hs₁.trans hw₂, hw₁⟩
+    obtain ⟨w, hw₁, hw₂⟩ := hP hs₂ b_step
+    exact ⟨w, hs₁.trans hw₁, hw₂⟩
 
 /-
 --  DiamondCommute.diamond_commute_reflTransGen_left
