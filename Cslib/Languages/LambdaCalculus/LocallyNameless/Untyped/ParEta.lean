@@ -8,7 +8,6 @@ Authors: Yijun Leng
 module
 
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.NormalBeta
 public import Cslib.Foundations.Relation.Attr
 public import Cslib.Foundations.Relation.Defs
@@ -220,7 +219,7 @@ theorem etaExp_fullEtaStar
     (etaExp^[k] M) ↠ηᶠ M := by
   induction k with
   | zero => exact Relation.ReflTransGen.refl
-  | succ n ih =>  convert Relation.ReflTransGen.head ( Xi.base ( Eta.eta ( etaExp_lc hM n ) ) ) ih
+  | succ n ih =>  convert Relation.ReflTransGen.head (Xi.base (Eta.eta (etaExp_lc hM n))) ih
                   rw [add_comm, Function.iterate_add]
                   simp
 
@@ -280,11 +279,10 @@ theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
       apply LC.abs
       exact hLC
     rw [add_comm, Function.iterate_add]
-    apply Parallel.beta xs
-    · intro x hx
-      convert ih xs hbody ( Parallel.fvar x )
-      grind [etaExp_lc hCabs j]
-    · assumption
+    apply Parallel.beta xs ?_ (by assumption)
+    intro x hx
+    convert ih xs hbody ( Parallel.fvar x )
+    grind [etaExp_lc hCabs j]
 
 
 variable [DecidableEq Var]
@@ -535,7 +533,7 @@ theorem parEta_hasBetaNF {P Q : Term Var}
                                         grind [ParEta.step_lc_r h]
   simp only [<- reflTransGen_parallel_fullBeta] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
-  obtain ⟨P', hPP', hP'N⟩ := postpone_a parEta_parBeta_postpone h hQN
+  obtain ⟨P', hPP', hP'N⟩ := DiamondCommute.diamond_commute_reflTransGen_right (r₁ := (swap (ParEta (Var := Var)))) (r₂ := Parallel) parEta_parBeta_postpone h hQN
   -- The η-expansion `P' ⟹η N` of the normal form `N` has a β-normal form.
   obtain ⟨M, hP'M, hMnorm⟩ := (core_par (betaNF_normal hNlc hN) P' hP'N).1
   simp only [reflTransGen_parallel_fullBeta] at hPP'
