@@ -7,18 +7,20 @@ Authors: Yijun Leng
 module
 
 public import Cslib.Foundations.Relation.Attr
+public import Cslib.Foundations.Relation.Defs
+public import Cslib.Foundations.Relation.Confluence
 
 
 /-!
 # Abstract postponement lemma
 
-A purely relational lemma: if a single `B`-step followed by a single `A`-step
-can be reorganized into a single `A`-step followed by a (reflexive-transitive)
-sequence of `B`-steps, then in any mixed `A`/`B` reduction sequence all the
-`B`-steps can be postponed to the end.
+r₁ purely relational lemma: if a single `r₂`-step followed by a single `r₁`-step
+can be reorganized into a single `r₁`-step followed by a (reflexive-transitive)
+sequence of `r₂`-steps, then in any mixed `r₁`/`r₂` reduction sequence all the
+`r₂`-steps can be postponed to the end.
 
 This is the abstract heart of η-postponement, instantiated later with
-`A := parallel β-reduction` and `B := η-reduction`.
+`r₁ := parallel β-reduction` and `r₂ := η-reduction`.
 -/
 
 @[expose] public section
@@ -27,76 +29,70 @@ namespace Cslib
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
-variable {α : Type*} {A B : α → α → Prop}
+open Relation
 
-@[grind]
-def LocalPostpone (A B : α → α → Prop) : Prop :=
-  ∀ ⦃p q r⦄, B p q → A q r → ∃ s, A p s ∧ B s r
+variable {α : Type*} {r₁ r₂ : α → α → Prop}
 
-/-- Strong local postponement: a single `B`-step followed by a single `A`-step
-reorganizes into a *non-empty* sequence of `A`-steps followed by a `B`-star. -/
-def WeakPostpone (A B : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, B x y → A y z →
-    ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
+def WeakPostpone (r₁ r₂ : α → α → Prop) : Prop :=
+  ∀ ⦃x y z⦄, r₂ y x → r₁ y z →
+    ∃ w, TransGen r₁ x w ∧ ReflTransGen r₂ z w
 
-def WeakPlusPostpone (A B : α → α → Prop) : Prop :=
-  ∀ ⦃x y z⦄, B x y → Relation.TransGen A y z →
-    ∃ w, Relation.TransGen A x w ∧ Relation.ReflTransGen B w z
+def WeakPlusPostpone (r₁ r₂ : α → α → Prop) : Prop :=
+  ∀ ⦃x y z⦄, r₂ y x → Relation.TransGen r₁ y z →
+    ∃ w, Relation.TransGen r₁ x w ∧ ReflTransGen r₂ z w
 
 
-/-
-A single `B`-step followed by a non-empty `A`-sequence reorganizes into a
-non-empty `A`-sequence followed by a `B`-star.
--/
 theorem single_over_plus
-  (hW : LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
-  (hL : WeakPostpone A B) :
-  WeakPlusPostpone A B := by
+  (hW : DiamondCommute (Relation.ReflTransGen r₁) (Relation.ReflTransGen r₂))
+  (hL : WeakPostpone r₁ r₂) :
+  WeakPlusPostpone r₁ r₂ := by
   intros x y z hxy hyz
   induction hyz with
   | single hyz => exact hL hxy hyz
   | tail h₁ h₂ h₃ =>
-    obtain ⟨ w, hw₁, hw₂ ⟩ := h₃
-    exact Exists.elim (hW hw₂ (.single h₂)) fun s hs => ⟨s, hw₁.trans_left hs.1, hs.2⟩
+    obtain ⟨w, hw₁, hw₂⟩ := h₃
+    exact Exists.elim (hW (.single h₂) hw₂) fun s hs => ⟨s, hw₁.trans_left hs.2, hs.1⟩
+
+theorem star_over_plus
+  (hW : DiamondCommute (Relation.ReflTransGen r₁) (Relation.ReflTransGen r₂))
+  (hL : WeakPostpone r₁ r₂) :
+  DiamondCommute (Relation.TransGen r₁) (Relation.ReflTransGen r₂) := by
+  have hP : WeakPlusPostpone r₁ r₂ := single_over_plus hW hL
+  intro q p r hB hA
+  induction hA generalizing p with
+  | refl => exact ⟨p, .refl, hB⟩
+  | tail _ b_step ih =>
+    obtain ⟨s, hs₁, hs₂⟩ := ih hB
+    obtain ⟨w, hw₁, hw₂⟩ := hP b_step hs₂
+    exact ⟨w, hs₁.trans hw₂, hw₁⟩
 
 /-
-A `B`-star followed by a non-empty `A`-sequence reorganizes into a non-empty
-`A`-sequence followed by a `B`-star.
--/
-theorem star_over_plus
-  (hW : LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B))
-  (hL : WeakPostpone A B) :
-  LocalPostpone (Relation.TransGen A) (Relation.ReflTransGen B) := by
-  intros a b c hab hbc
-  induction hab generalizing c with
-  | refl => exact ⟨ c, hbc, by rfl ⟩
-  | tail _ hB hA =>
-    exact single_over_plus hW hL hB hbc |> fun ⟨w, hw₁, hw₂⟩ => hA hw₁
-                                        |> fun ⟨x, hx₁, hx₂⟩ => ⟨x, hx₁, hx₂.trans hw₂⟩
+--  DiamondCommute.diamond_commute_reflTransGen_left
+theorem postpone_a (h : DiamondCommute r₂ r₁) :
+   DiamondCommute r₂ (Relation.ReflTransGen r₁) := by
+  intro q p r hB hA
+  induction hA generalizing p with
+  | refl => exact ⟨p, .refl, hB⟩
+  | tail _ a_step ih =>
+    obtain ⟨s, hs₁, hs₂⟩ := ih hB
+    obtain ⟨w, hw₁, hw₂⟩ := h hs₂ a_step
+    exact ⟨w, hs₁.tail hw₁, hw₂⟩
 
-theorem postpone_a (h : LocalPostpone A B) :
-   LocalPostpone (Relation.ReflTransGen A) B := by
-  intros p q r hB hA
-  induction hA generalizing p with grind
-
-theorem postpone_b (h : LocalPostpone A B) :
-   LocalPostpone A (Relation.ReflTransGen B) := by
-  intros p q r hB hA
-  induction hB generalizing r with grind
-
-theorem postpone_ab (h : LocalPostpone A B) :
-   LocalPostpone (Relation.ReflTransGen A) (Relation.ReflTransGen B) := by
-  intros p q r hB hA
+-- unused
+theorem postpone_b (h : DiamondCommute r₂ r₁) :
+   DiamondCommute (Relation.ReflTransGen r₂) r₁ := by
+  intro q p r hB hA
   induction hB generalizing r with
-  | refl => grind
+  | refl => exact ⟨r, hA, .refl⟩
   | tail _ b_step ih =>
-    -- 1. Push the final single B step past the A* steps
-    have ⟨s', hA_s', hB_s'⟩ := postpone_a h b_step hA
-    -- 2. Use the induction hypothesis to push the rest of the B* steps past the new A* steps
-    have ⟨s'', hA_s'', hB_s''⟩ := ih hA_s'
-    -- 3. Combine the results to form the full A* and B* paths
-    exact ⟨s'', hA_s'', Relation.ReflTransGen.tail hB_s'' hB_s'⟩
+    obtain ⟨s, hs₁, hs₂⟩ := ih hA
+    obtain ⟨w, hw₁, hw₂⟩ := h b_step hs₁
+    exact ⟨w, hw₁, hs₂.tail hw₂⟩
+-/
 
+theorem postpone_ab (h : DiamondCommute r₂ r₁) :
+   DiamondCommute (Relation.ReflTransGen r₂) (Relation.ReflTransGen r₁) :=
+   DiamondCommute.to_commute h
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
