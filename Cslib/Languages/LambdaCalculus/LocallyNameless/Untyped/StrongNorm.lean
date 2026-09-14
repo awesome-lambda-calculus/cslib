@@ -168,8 +168,10 @@ lemma sn_eta_steps [DecidableEq Var] [HasFresh Var]
   induction sn_t generalizing t' with
   | intro t h ih => constructor
                     intros t'' ht''
+                    rw [reflTransGen_swap] at t_st_t'
                     obtain ⟨_, h1, h2⟩ := eta_beta_postpone t_st_t' (.single ht'')
-                    apply ih _ h1 h2
+                    rw [reflTransGen_swap] at h2
+                    exact ih _ h1 h2
 
 
 theorem acc_cong {α : Sort u} {r s : α → α → Prop}
@@ -192,9 +194,8 @@ theorem acc_cong {α : Sort u} {r s : α → α → Prop}
       exact ih z hsz
 
 lemma sn_eta_step [DecidableEq Var] [HasFresh Var] :
-  Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (SN FullBeta) := by
-    intros _ _ steps sn_t
-    exact sn_eta_steps steps (SN.transGen sn_t)
+  Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (SN FullBeta) :=
+    fun _ _ steps sn_t => sn_eta_steps steps (SN.transGen sn_t)
 
 /-- **η-expansion preserves β-strong-normalisation (single step).**  If
 `t ⟶η t'` (one η-step) and `t'` is β-strongly-normalising, then so is `t`. -/
@@ -207,11 +208,8 @@ theorem sn_eta_steps_inv [DecidableEq Var] [HasFresh Var]
     induction t_st_t' with grind [sn_eta_step_inv]
 
 theorem sn_eta_steps_iff [DecidableEq Var] [HasFresh Var]
-  (steps : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' := by
-  constructor
-  · intro h
-    exact sn_eta_step steps h
-  · grind [sn_eta_steps_inv]
+  (steps : t ↠ηᶠ t') : SN FullBeta t <-> SN FullBeta t' :=
+  ⟨fun h => sn_eta_step steps h, fun h => sn_eta_steps_inv steps h⟩
 
 /-!
 # βη strong normalisation equals β strong normalisation
@@ -268,7 +266,9 @@ theorem betaEtaSN_inner [DecidableEq Var] [HasFresh Var]
       -- hb : flip BetaEtaStep b a', i.e. BetaEtaStep a' b
       rcases hb with hbeta | heta
       · -- β-step a' ⟶β b
+        rw [reflTransGen_swap] at hrel
         obtain ⟨d, hd1, hd2⟩ := eta_beta_postpone hrel (.single hbeta)
+        rw [reflTransGen_swap] at hd2
         exact Relation.SN.of_rel_reflTransGen (IHB d hd1) (by grind)
       · -- η-step a' ⟶η b
         exact IHE b heta (hrel.tail heta)
@@ -305,8 +305,7 @@ theorem betaEta_sn_iff_beta_sn [DecidableEq Var] [HasFresh Var] (t : Term Var) :
   · apply sn_fullBeta_of_sn_betaEta
   · intro h
     apply sn_betaEta_of_sn_fullBeta
-    rw [Relation.SN.iff_transGen]
-    assumption
+    rwa [Relation.SN.iff_transGen]
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
