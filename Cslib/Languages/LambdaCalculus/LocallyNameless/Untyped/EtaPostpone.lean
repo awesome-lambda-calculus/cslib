@@ -48,19 +48,26 @@ theorem WeakPostpone_fullBeta_fullEta :
   grind
   | appL _ h ih => cases hβ with
     | base hβ => cases hβ with | beta hm hn =>
-      exact ⟨_, FullEta.step_open_cong_r hm h, .single (.base (.beta hm (FullEta.step_lc_l h)))⟩
+      refine ⟨_, ?_, .single (.base (.beta hm (FullEta.step_lc_l h)))⟩
+      rw [reflTransGen_swap] at *
+      exact FullEta.step_open_cong_r hm h
     | appL h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
-                    exact ⟨_, FullBeta.transgen_app_r h1 hw1, FullEta.redex_app_r_cong hw2 h1⟩
-    | appR _ h2 =>  exact ⟨_, .single (.appR (FullEta.step_lc_l h) h2),
-                              .single (.appL (FullBeta.step_lc_r h2) h)⟩
+                    refine ⟨_, ?_, FullBeta.transgen_app_r h1 hw2⟩
+                    rw [reflTransGen_swap] at *
+                    exact FullEta.redex_app_r_cong hw1 h1
+    | appR _ h2 =>  exact ⟨_, .single (.appL (FullBeta.step_lc_r h2) h),
+                              .single (.appR (FullEta.step_lc_l h) h2)⟩
   | appR _ h ih => cases hβ with
-    | appL _ h2 => exact ⟨_, .single (.appL (FullEta.step_lc_l h) h2),
-                             .single (.appR (FullBeta.step_lc_r h2) h)⟩
+    | appL _ h2 => exact ⟨_, .single (.appR (FullBeta.step_lc_r h2) h),
+                             .single (.appL (FullEta.step_lc_l h) h2)⟩
     | appR h1 h2 => obtain ⟨w, hw1, hw2⟩ := ih h2
-                    exact ⟨_, FullBeta.transgen_app_l h1 hw1, FullEta.redex_app_l_cong hw2 h1⟩
+                    refine ⟨_, ?_, FullBeta.transgen_app_l h1 hw2⟩
+                    rw [reflTransGen_swap] at *
+                    exact  FullEta.redex_app_l_cong hw1 h1
     | base hβ => cases hβ with | beta hm hz => cases h with
-      | abs xs h => exact ⟨_, .single (.base (.beta (FullEta.step_lc_l (Xi.abs xs h)) hz)),
-                              FullEta.steps_open_cong_l xs (by grind) hz⟩
+      | abs xs h => refine ⟨_, ?_, .single (.base (.beta (FullEta.step_lc_l (Xi.abs xs h)) hz))⟩
+                    rw [reflTransGen_swap] at *
+                    exact FullEta.steps_open_cong_l xs (by grind) hz
       | base h => cases h with | eta h =>
           refine ⟨_, ?_, .head (.base (.beta ?_ hz)) (.single (.base (.beta ?_ (by grind))))⟩
           · rw [<- lcAt_iff_LC] at *
