@@ -98,21 +98,17 @@ theorem WeakPostpone_fullBeta_fullEta :
         · cases hw2 <;> apply FullBeta.step_lc_r <;> assumption
         · grind
 
-theorem Etastar_hasBetaNF {P Q : Term Var}
-    (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
-  induction h with
-  | refl => grind
-  | tail _ h ih => exact ih (parEta_hasBetaNF (ParEta.fromFullEta h) hQ)
-
-theorem localpostpone_fullBeta_fullEta :
-  LocalPostpone (Relation.ReflTransGen (FullBeta (Var := Var))) (Relation.ReflTransGen FullEta) :=
-  by
-    intros _ _ _ heta hbeta
-    simp only [<- reflTransGen_parallel_fullBeta] at hbeta
-    rw [<- paraEtachain_iff_redex] at heta
-    obtain ⟨s, _, _⟩ := postpone_ab parEta_parBeta_postpone heta hbeta
-    use s
-    simp_all [<- reflTransGen_parallel_fullBeta, <- paraEtachain_iff_redex]
+theorem localpostpone_Beta_Eta :
+  DiamondCommute (ReflTransGen (swap FullEta)) (ReflTransGen (FullBeta (Var := Var))) := by
+  intros _ _ _ heta hbeta
+  simp only [<- reflTransGen_parallel_fullBeta] at hbeta
+  rw [reflTransGen_swap] at heta
+  rw [<- paraEtachain_iff_redex] at heta
+  rw [<- reflTransGen_swap] at heta
+  obtain ⟨s, _, _⟩ := DiamondCommute.to_commute (r₁ := (swap (ParEta (Var := Var)))) (r₂ := Parallel) parEta_parBeta_postpone heta hbeta
+  use s
+  simp_all [<- reflTransGen_parallel_fullBeta, <- paraEtachain_iff_redex]
+  sorry
 
 theorem eta_postponement {M N : Term Var} (h : M ↠βηᶠ N) :
     ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
@@ -144,6 +140,11 @@ theorem etastar_preserves_normal_beta :
   rw [Relation.TransGen.head'_iff] at hy
   grind
 
+theorem Etastar_hasBetaNF {P Q : Term Var}
+    (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
+  induction h with
+  | refl => grind
+  | tail _ h ih => exact ih (parEta_hasBetaNF (ParEta.fromFullEta h) hQ)
 
 /-- **A term has a βη-normal form ⇔ it has a β-normal form.** -/
 theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
