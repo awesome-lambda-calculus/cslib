@@ -149,7 +149,7 @@ theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
   Relation.Normalizable FullBeta t ↔ Relation.Normalizable FullBetaEta t := by
   constructor
   · rintro ⟨y, hy, hβ⟩
-    obtain ⟨z, hz, hnormal⟩:= Relation.SN.normalizable (FullEta.wellFoundedFullEta.apply y)
+    obtain ⟨z, hz, hnormal⟩:= Relation.SN.normalizable (FullEta.wellFounded.apply y)
     refine ⟨z, .trans (Relation.ReflTransGen.mono le_sup_left _ _ hy)
                       (Relation.ReflTransGen.mono le_sup_right _ _ hz), ?_⟩
     have := etastar_preserves_normal_beta hz hβ
