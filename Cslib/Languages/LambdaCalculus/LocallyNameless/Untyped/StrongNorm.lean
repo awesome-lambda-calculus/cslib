@@ -234,14 +234,6 @@ using the strong single-step postponement lemma `eta_beta_postpone`.
 
 /-! ## Generic accessibility conversions between a relation and its transitive closure -/
 
-/-! ## η-reduction is well-founded -/
-
-/-- `FullEta` (forward) is well-founded: every term is `flip FullEta`-accessible. -/
-theorem wellFoundedFullEta [DecidableEq Var] [HasFresh Var] :
-  Relation.Terminating (FullEta : Term Var → Term Var → Prop) :=
-    Subrelation.wf (fun {a b} (h : flip FullEta a b) => FullEta.fullEta_size_lt h)
-      (InvImage.wf size Nat.lt_wfRel.wf)
-
 /-! ## The backward direction: β-SN implies βη-SN -/
 
 /-- Inner step of the backward direction.  Given that every genuine β-reduct of
@@ -282,7 +274,7 @@ theorem sn_betaEta_of_sn_fullBeta [DecidableEq Var] [HasFresh Var]
   induction hB with
   | intro t hBacc IHB =>
       -- IHB : ∀ d, TransGen FullBeta t d → Acc (flip BetaEtaStep) d
-      exact betaEtaSN_inner t IHB (wellFoundedFullEta.apply t) Relation.ReflTransGen.refl
+      exact betaEtaSN_inner t IHB (FullEta.wellFounded.apply t) Relation.ReflTransGen.refl
 
 /-! ## The forward direction and the equivalence -/
 

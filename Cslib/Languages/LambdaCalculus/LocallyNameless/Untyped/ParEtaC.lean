@@ -258,8 +258,7 @@ theorem interaction (t : Term Var) : InteractionAt t := by
     | @abs _ _ ys M0' hbody =>
       -- t' = abs M0', hbody : ∀ x ∉ ys, ParEtaC n (M0^x) (M0'^x)
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have hsz : size (M0 ^ Term.fvar x) < size M0.abs := by
-        rw [size_open_fvar]; have : size M0.abs = size M0 + 1 := rfl; omega
+      have hsz : size (M0 ^ Term.fvar x) < size M0.abs := by grind
       rcases IH (M0 ^ Term.fvar x) hsz _ _ _ (hbody x (by grind)) (hbodystep x (by grind)) with
         ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · refine Or.inl ⟨(s'' ^* x).abs, m, ParEtaC.abs_of_open x (by grind) (by grind) ?_, ?_⟩
