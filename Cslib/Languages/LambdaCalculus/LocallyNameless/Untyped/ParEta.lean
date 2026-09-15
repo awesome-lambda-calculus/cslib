@@ -458,18 +458,21 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
     obtain ⟨Q0, hQ0⟩ := ih x0 (by grind) (hM0 x0 (by grind))
     set M0' : Term Var := Q0 ^* x0
     -- Prove the cofinite families for all `x` (using `LC Q0 = (ParBeta.regular ‹ParBeta (M0^x0) Q0›).2`, `subst_intro` with `x0∉fv M0`, `x0∉fv M'`, and `open_close_lc`):
-    have h_cofinite : ∀ x ∉ xs ∪ xs2, Parallel (M0 ^ fvar x) (M0' ^ fvar x) ∧ ParEta (M0' ^ fvar x) (M' ^ fvar x) := by
+    have hM0_cofinite : ∀ x ∉ xs ∪ xs2, Parallel (M0 ^ fvar x) (M0' ^ fvar x) := by
       intro x hx
       have h_subst : M0 ^ fvar x = (M0 ^ fvar x0)[x0 := fvar x] := Term.subst_intro _ _ _ (by grind)
       have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
-      have h_subst'' : M' ^ fvar x = (M' ^ fvar x0)[x0:= fvar x] := Term.subst_intro _ _ _ (by grind)
-      constructor
-      · rw [h_subst, h_subst']
-        apply para_subst <;> grind
-      · rw [h_subst', h_subst'']; exact ParEta.subst_par x0 hQ0.2 (ParEta.fvar x)
+      rw [h_subst, h_subst']
+      apply para_subst <;> grind
+    have hM0'_cofinite : ∀ x ∉ xs ∪ xs2, ParEta (M0' ^ fvar x) (M' ^ fvar x) := by
+      intro x hx
+      have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
+      have h_subst'' : M' ^ fvar x = (M' ^ fvar x0)[x0:= fvar x] := subst_intro _ _ _ (by grind)
+      rw [h_subst', h_subst'']
+      exact ParEta.subst_par x0 hQ0.2 (ParEta.fvar x)
     exact ⟨etaExp^[k] M0'.abs,
-           parBeta_etaExp_congr (Parallel.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.1) _,
-           parEta_etaExp (ParEta.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.2) _⟩
+           parBeta_etaExp_congr (Parallel.abs (xs ∪ xs2) hM0_cofinite) _,
+           parEta_etaExp (ParEta.abs (xs ∪ xs2) hM0'_cofinite) _⟩
   | beta xs h₁ h₂ h₃ h₄ =>
     rename_i xs M' N' M'' N''
     obtain ⟨k, M₁, M₂, rfl, hM₁, hM₂⟩ := parEta_inv_app hη
