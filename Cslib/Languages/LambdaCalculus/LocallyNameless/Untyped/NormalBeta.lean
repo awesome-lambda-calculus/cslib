@@ -11,14 +11,22 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaAt
 
 /-!
-# Takahashi's η/β commutation lemma
+# Normal β-forms in the locally nameless λ-calculus
 
-The key single-step local postponement: an η-step followed by a parallel β-step
-can be reorganized into a parallel β-step followed by η-steps,
-`FullEta · ParBeta ⊆ ParBeta · FullEtaStar`.
+This file develops the syntactic notion of a normal term for the untyped locally
+nameless λ-calculus and proves that it coincides with the semantic notion of a
+locally closed β-normal form.
 
+The central facts are:
+* every normal term is locally closed;
+* every normal term is a β-normal form;
+* conversely, every locally closed β-normal form is normal.
+
+These lemmas are used to characterize the β-normal forms of the calculus and to
+reason about η/β commutation in related developments.
 -/
 
 
@@ -43,12 +51,12 @@ inductive Normal : Term Var → Prop where
   | app {M N : Term Var} :
       Normal M → ¬ M.IsAbs  → Normal N → Normal (app M N)
   | abs (xs : Finset Var) {M : Term Var} :
-      (∀ x ∉ xs, Normal (M ^ fvar x)) → Normal (Term.abs M)
+      (∀ x ∉ xs, Normal (M ^ fvar x)) → Normal M.abs
 
 /-- A **NormalNotAbs** term is a normal term that is not an abstraction (a
 variable-headed application spine). -/
 @[scoped grind]
-def NormalNotAbs (M : Term Var) : Prop := Normal M ∧ ¬ M.IsAbs
+abbrev NormalNotAbs (M : Term Var) : Prop := Normal M ∧ ¬ M.IsAbs
 
 theorem NormalNotAbs.fvar (x : Var) : NormalNotAbs (Term.fvar x : Term Var) :=
   ⟨Normal.fvar x, by grind⟩
@@ -78,20 +86,17 @@ Normal terms are β-normal forms.
 -/
 theorem Normal.betaNF {M : Term Var} (h : Normal M) : Relation.Normal FullBeta M := by
   induction h with
+  | fvar x => rintro ⟨N, hN⟩
+              cases hN with | base hN => cases hN
   | app _ _ _ _ _ =>
-    intro  hu
-    obtain ⟨ z, hz ⟩ := hu
+    rintro ⟨z, hz⟩
     cases hz <;> grind
   | abs xs hM ih =>
-    intro hN
-    obtain ⟨ ys, hys ⟩ := hN
+    rintro ⟨ys, hys⟩
     cases hys with
     | base hys => cases hys
     | abs xs h => have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-                  apply ih x (by grind) ⟨_, (h x (by grind))⟩
-  | fvar x => intro hM'
-              obtain ⟨ N, hN ⟩ := hM'
-              cases hN with | base hN => cases hN
+                  exact ih x (by grind) ⟨_, h x (by grind)⟩
 
 /-
 Normality is preserved by renaming a free variable to another.
@@ -102,24 +107,13 @@ theorem Normal.subst_fvar {M : Term Var} (h : Normal M) (x y : Var) :
   | fvar z => rw [Term.subst_fvar]
               split <;> constructor
   | abs xs hM ih =>
-    apply Normal.abs ( xs ∪ { x } )
-    intro z hz
-    convert ih z ( by grind )
-    rw  [Term.subst_open_var] <;> grind
+    apply Normal.abs (xs ∪ { x }) (fun z hz => ?_)
+    convert ih z (by grind)
+    rw [Term.subst_open_var] <;> grind
   | app _ h₁ h₂ h₃ h₄ =>
-    convert Normal.app h₃ _ h₄
-    · rw [Term.subst_app]
-    · intro hC
-      rename_i M _ _
-      cases M with
-      | fvar _ => rw [Term.subst_fvar] at hC
-                  split at hC <;> cases hC
-      | bvar _ => rw [Term.subst_bvar] at hC
-                  cases hC
-      | app _ _ =>  rw [Term.subst_app] at hC
-                    cases hC
-      | abs _ =>  rw [Term.subst_abs] at hC
-                  grind
+    apply Normal.app h₃ (fun hC => ?_) h₄
+    rw [isAbs_subst_fvar] at hC
+    grind
 
 /-
 Conversely, every locally closed β-normal form is normal.
@@ -128,38 +122,17 @@ theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta 
   induction hlc with
   | fvar x => exact Normal.fvar x
   | abs hN e _ ih =>
-    apply Normal.abs ( hN ∪  e.fv )
-    intro x hx
-    apply ih x (by grind)
-    intros g
-    obtain ⟨t, g⟩ := g
-    apply h
-    exists (t^*x).abs
-    apply Xi.abs e.fv
-    intros y hy
+    apply Normal.abs (hN ∪ e.fv)
+      (fun x hx => ih x (by grind) (fun ⟨t, g⟩ => h ⟨(t^*x).abs, Xi.abs e.fv (fun y hy => ?_)⟩))
     unfold close open'
-    rw [close_openRec_to_subst]
-    · have g := FullBeta.redex_subst_cong_lc _ _ (fvar y) x g (by grind)
-      rw [<- subst_intro_openRec] at g
-      · exact g
-      · grind
-    · apply FullBeta.step_lc_r g
-    · grind
-  | app _ _ hN hM =>
-    apply Normal.app
-    · apply hN
-      intro hu
-      obtain ⟨ _, hu⟩ := hu
-      apply h
-      exact ⟨ _, Xi.appR (by assumption) hu⟩
-    · intros hC
-      cases hC
-      apply h
-      exact ⟨ _, Xi.base (Beta.beta (by assumption) (by assumption) )⟩
-    · apply hM
-      intro hu
-      obtain ⟨ _, hu⟩ := hu
-      exact h ⟨ _, Xi.appL (by assumption) hu⟩
+    rw [close_openRec_to_subst _ _ _ _ (FullBeta.step_lc_r g) (by grind)]
+    have g := FullBeta.redex_subst_cong_lc _ _ (fvar y) x g (by grind)
+    rwa [<- subst_intro_openRec (by grind)] at g
+  | app m_lc n_lc hm hn =>
+    refine .app (hm (fun ⟨ _, hu⟩ => h ⟨ _, .appR n_lc hu⟩)) (fun hC => h ?_)
+                  (hn (fun ⟨ _, hu⟩ => h ⟨ _, .appL m_lc hu⟩))
+    cases hC
+    exact ⟨_, Xi.base (Beta.beta m_lc n_lc)⟩
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
