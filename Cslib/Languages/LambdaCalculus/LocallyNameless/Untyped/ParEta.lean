@@ -135,8 +135,8 @@ theorem ParEta.open_par [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} 
     ParEta (M ^ N) (M' ^ N') := by
   have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
   convert ParEta.subst_par z (hbody z (by grind)) hN
-  · rw [ Term.subst_intro z]; grind
-  · rw [ Term.subst_intro z]; grind
+  · rw [Term.subst_intro z]; grind
+  · rw [Term.subst_intro z]; grind
 
 
 
@@ -165,7 +165,7 @@ theorem parEta_inv_fvar {L : Term Var} {x : Var}
   | fvar x => exists 0
   | app _ _ _ _ => grind
   | abs xs _ _ => grind
-  | eta _ _ ih => obtain ⟨ k, rfl ⟩ := ih hm
+  | eta _ _ ih => obtain ⟨k, rfl⟩ := ih hm
                   exists k + 1
                   rw [add_comm, Function.iterate_add]
                   simp
@@ -179,10 +179,10 @@ theorem parEta_inv_app {L A B : Term Var} :
   induction n : Term.size L using Nat.strong_induction_on generalizing L A B with
   | h n ih =>
   rintro (h | h | h | h)
-  · exact ⟨ 0, _, _, rfl, h, by assumption ⟩
+  · exact ⟨0, _, _, rfl, h, by assumption⟩
   · rename_i M hM
-    obtain ⟨ k, A', B', rfl, hA', hB' ⟩ := ih _ (by grind) rfl hM
-    refine ⟨ k + 1, A', B', ?_, hA', hB' ⟩
+    obtain ⟨k, A', B', rfl, hA', hB'⟩ := ih _ (by grind) rfl hM
+    refine ⟨k + 1, A', B', ?_, hA', hB'⟩
     rw [add_comm, Function.iterate_add]
     simp
 
@@ -196,10 +196,10 @@ theorem parEta_inv_abs {L A : Term Var} :
   induction n : Term.size L using Nat.strong_induction_on generalizing L A with
   | h n ih =>
   rintro (h | h | h | h)
-  · exact ⟨ 0, _, h, rfl, by assumption ⟩
+  · exact ⟨0, _, h, rfl, by assumption⟩
   · rename_i M hM
-    obtain ⟨ k, A', xs, rfl, hA' ⟩ := ih _ (by grind) rfl hM
-    refine ⟨ k + 1, A', xs, ?_, hA' ⟩
+    obtain ⟨k, A', xs, rfl, hA'⟩ := ih _ (by grind) rfl hM
+    refine ⟨k + 1, A', xs, ?_, hA'⟩
     rw [add_comm, Function.iterate_add]
     simp
 
@@ -348,8 +348,8 @@ theorem etaExp_NormalNotAbs_normalForm
     ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ Normal M := by
   -- If k = 0, we can take M = B.
   by_cases hk : k = 0
-  · exact ⟨ B, by subst hk; exact Relation.ReflTransGen.refl, hne.1 ⟩
-  · obtain ⟨ k, rfl ⟩ := Nat.exists_eq_succ_of_ne_zero hk
+  · exact ⟨B, by subst hk; exact Relation.ReflTransGen.refl, hne.1⟩
+  · obtain ⟨k, rfl⟩ := Nat.exists_eq_succ_of_ne_zero hk
     exists (B.app (bvar 0)).abs
     induction k with unfold etaExp
     | zero => exact ⟨Relation.ReflTransGen.refl, Normal.etaExp_one hne⟩
@@ -445,12 +445,12 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
   induction hβ generalizing M with
   | fvar x => exact ⟨M, Parallel.lc_refl M (ParEta.step_lc_l hη), by grind⟩
   | app _ _ ih1 ih2 =>
-    obtain ⟨ k, M1, M2, rfl, hM1, hM2 ⟩ := parEta_inv_app hη
-    obtain ⟨ P1, hP1, hP1' ⟩ := ih1 hM1
-    obtain ⟨ P2, hP2, hP2' ⟩ := ih2 hM2
-    exact ⟨ etaExp^[k] (app P1 P2),
+    obtain ⟨k, M1, M2, rfl, hM1, hM2⟩ := parEta_inv_app hη
+    obtain ⟨P1, hP1, hP1'⟩ := ih1 hM1
+    obtain ⟨P2, hP2, hP2'⟩ := ih2 hM2
+    exact ⟨etaExp^[k] (app P1 P2),
             parBeta_etaExp_congr (Parallel.app hP1 hP2) k,
-            parEta_etaExp (ParEta.app hP1' hP2') k ⟩
+            parEta_etaExp (ParEta.app hP1' hP2') k⟩
   | abs xs hβ ih =>
     rename_i xs M M'
     obtain ⟨k, M0, xs2, rfl, hM0⟩ := parEta_inv_abs hη
@@ -491,8 +491,8 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
       intro x hx
       convert ParEta.subst_par x0 hQ₂ (ParEta.fvar x)
       · rw [close_open_to_subst] <;> grind
-      · rw [ Term.subst_intro x0 _ _ (by grind)]
-    obtain ⟨ P', hP', hP'' ⟩ := h₄ hM₂
+      · rw [Term.subst_intro x0 _ _ (by grind)]
+    obtain ⟨P', hP', hP''⟩ := h₄ hM₂
     exact ⟨etaExp^[k] (M₁b' ^ P'),
            parBeta_etaExp_congr (parBeta_etaExp_abs_app (xs ∪ xs') hM₁b'_family hP' j) k,
            parEta_etaExp (ParEta.open_par _ hM₁b'_family' hP'') k⟩
