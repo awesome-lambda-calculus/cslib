@@ -235,7 +235,7 @@ theorem interaction (t : Term Var) : InteractionAt t := by
           -- t' = app (abs M') N' still a redex; genuine β-step on t'
           obtain ⟨c, hc⟩ := ParEtaC.open_of_absBody ys hbody hn
           exact Or.inl ⟨_, c, hc,
-            Xi.base (Beta.beta (ParEtaC.step_lc_r (ParEtaC.abs ys hbody)) (ParEtaC.step_lc_r hn))⟩
+            .base (.beta (ParEtaC.step_lc_r (.abs ys hbody)) (ParEtaC.step_lc_r hn))⟩
         | @eta a2 P _ hP hPF =>
           -- M = app P (bvar 0); the β-step is absorbed by the η-redex
           refine Or.inr ⟨a2 + b, by omega, ParEtaC.app ?_ hn⟩
@@ -258,8 +258,7 @@ theorem interaction (t : Term Var) : InteractionAt t := by
     | @abs _ _ ys M0' hbody =>
       -- t' = abs M0', hbody : ∀ x ∉ ys, ParEtaC n (M0^x) (M0'^x)
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have hsz : size (M0 ^ Term.fvar x) < size M0.abs := by grind
-      rcases IH (M0 ^ Term.fvar x) hsz _ _ _ (hbody x (by grind)) (hbodystep x (by grind)) with
+      rcases IH (M0 ^ fvar x) (by grind) _ _ _ (hbody x (by grind)) (hbodystep x (by grind)) with
         ⟨s'', m, hpar, hbeta⟩ | ⟨m, hm, hpar⟩
       · refine Or.inl ⟨(s'' ^* x).abs, m, ParEtaC.abs_of_open x (by grind) (by grind) ?_, ?_⟩
         · rw [close_open _ _ (FullBeta.step_lc_r hbeta)]
