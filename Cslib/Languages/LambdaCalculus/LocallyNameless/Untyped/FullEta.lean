@@ -187,9 +187,8 @@ lemma terminating : Terminating (@FullEta Var) :=
 
 /- `FullEta` (forward) is well-founded: every term is `flip FullEta`-accessible.-/
 open Relation in
-theorem wellFoundedFullEta :
-  Terminating (FullEta : Term Var → Term Var → Prop) :=
-    Subrelation.wf (fun {a b} (h : flip FullEta a b) => FullEta.fullEta_size_lt h)
+theorem wellFounded : Terminating (@FullEta Var) :=
+  Subrelation.wf (fun {a b} (h : flip FullEta a b) => step_size h)
       (InvImage.wf size Nat.lt_wfRel.wf)
 
 
