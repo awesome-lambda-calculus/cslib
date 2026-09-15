@@ -134,7 +134,7 @@ theorem ParEta.open_par [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} 
     (hN : ParEta N N') :
     ParEta (M ^ N) (M' ^ N') := by
   have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
-  convert ParEta.subst_par z ( hbody z (by grind) ) hN
+  convert ParEta.subst_par z (hbody z (by grind)) hN
   · rw [ Term.subst_intro z]; grind
   · rw [ Term.subst_intro z]; grind
 
@@ -178,7 +178,7 @@ theorem parEta_inv_app {L A B : Term Var} :
     ∃ k A' B', L = etaExp^[k] (app A' B') ∧ ParEta A' A ∧ ParEta B' B := by
   induction n : Term.size L using Nat.strong_induction_on generalizing L A B with
   | h n ih =>
-  rintro ( h | h | h | h )
+  rintro (h | h | h | h)
   · exact ⟨ 0, _, _, rfl, h, by assumption ⟩
   · rename_i M hM
     obtain ⟨ k, A', B', rfl, hA', hB' ⟩ := ih _ (by grind) rfl hM
@@ -195,7 +195,7 @@ theorem parEta_inv_abs {L A : Term Var} :
       ∀ x ∉ xs, ParEta (A' ^ fvar x) (A ^ fvar x) := by
   induction n : Term.size L using Nat.strong_induction_on generalizing L A with
   | h n ih =>
-  rintro ( h | h | h | h )
+  rintro (h | h | h | h)
   · exact ⟨ 0, _, h, rfl, by assumption ⟩
   · rename_i M hM
     obtain ⟨ k, A', xs, rfl, hA' ⟩ := ih _ (by grind) rfl hM
@@ -252,7 +252,7 @@ theorem Normal.etaExp_one
     Normal (etaExp B) := by
   apply Normal.abs ∅
   intro x hx
-  convert Normal.app hne.1 (by grind) ( Normal.fvar x )
+  convert Normal.app hne.1 (by grind) (Normal.fvar x)
   grind [NormalNotAbs.lc hne]
 
 /-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
@@ -283,7 +283,7 @@ theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
     rw [add_comm, Function.iterate_add]
     apply Parallel.beta xs ?_ (by assumption)
     intro x hx
-    convert ih xs hbody ( Parallel.fvar x )
+    convert ih xs hbody (Parallel.fvar x)
     grind [etaExp_lc hCabs j]
 
 
@@ -303,7 +303,7 @@ theorem etaExp_betaStar_congr
   | zero => exact h
   | succ k ih =>
     rw [add_comm, Function.iterate_add]
-    apply FullBeta.redex_abs_cong ( ∅ : Finset Var )
+    apply FullBeta.redex_abs_cong (∅ : Finset Var)
     intro x hx
     convert FullBeta.redex_app_l_cong ih (LC.fvar x)
     · grind [etaExp_lc hM.1 k]
@@ -321,7 +321,7 @@ theorem etaExp_abs_collapse {C : Term Var} (hC : C.abs.LC) (k : ℕ) :
     obtain ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
     apply Xi.abs { x }
     intro y hy
-    convert Xi.base ( Beta.beta ( show LC C.abs from hC ) ( show LC ( fvar y ) from LC.fvar y))
+    convert Xi.base (Beta.beta (show LC C.abs from hC) (show LC (fvar y) from LC.fvar y))
     grind
   induction k with
   | zero =>  exact .refl
@@ -404,7 +404,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
           ((FullBeta.redex_app_r_cong  hNred (etaExp_lc (NormalNotAbs.lc hB1neu) k1)).trans
             (etaExp_app_collapse (NormalNotAbs.lc hB1neu) (Normal.lc hNnorm) k1))
       have hBneu : NormalNotAbs (app B1 Nhat) := NormalNotAbs.app hB1neu hNnorm
-      have hcongr : (etaExp^[j] (app M' N') ) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
+      have hcongr : (etaExp^[j] (app M' N')) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
         etaExp_betaStar_congr hcollapse j
       obtain ⟨M2, h2red, h2norm⟩ := etaExp_NormalNotAbs_normalForm hBneu j
       exact ⟨⟨M2, hcongr.trans h2red, h2norm⟩, fun _ => ⟨j, app B1 Nhat, hcongr, hBneu⟩⟩
@@ -414,7 +414,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       obtain ⟨x0, hx0⟩ := fresh_exists <| free_union [fv] Var
       obtain ⟨C0, hC0red, hC0norm⟩ :=
         (ihbody x0 (by grind) (body' ^ fvar x0) (hred x0 (by grind))).1
-      set D := closeRec 0 x0 C0 with hDdef
+      set D := C0 ^* x0 with hDdef
       have hDred : ∀ x : Var, (body' ^ fvar x) ↠βᶠ (D ^ fvar x) := by
         intro x
         have e1 : body' ^ fvar x = (body' ^ fvar x0)[x0 := fvar x] :=
@@ -443,8 +443,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
 theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Parallel := by
   intros P M N hη hβ
   induction hβ generalizing M with
-  | fvar x => unfold Join₂
-              grind +suggestions
+  | fvar x => exact ⟨M, Parallel.lc_refl M (ParEta.step_lc_l hη), by grind⟩
   | app _ _ ih1 ih2 =>
     obtain ⟨ k, M1, M2, rfl, hM1, hM2 ⟩ := parEta_inv_app hη
     obtain ⟨ P1, hP1, hP1' ⟩ := ih1 hM1
@@ -454,11 +453,10 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
             parEta_etaExp (ParEta.app hP1' hP2') k ⟩
   | abs xs hβ ih =>
     rename_i xs M M'
-    obtain ⟨ k, M0, xs2, rfl, hM0 ⟩ := parEta_inv_abs hη
+    obtain ⟨k, M0, xs2, rfl, hM0⟩ := parEta_inv_abs hη
     obtain ⟨x0, hx0⟩ := fresh_exists <| free_union [fv] Var
-    obtain ⟨ Q0, hQ0 ⟩ := ih x0 ( by grind ) ( hM0 x0 ( by grind ) )
-    -- Set `M0' = closeRec 0 x0 Q0`.
-    set M0' : Term Var := closeRec 0 x0 Q0
+    obtain ⟨Q0, hQ0⟩ := ih x0 (by grind) (hM0 x0 (by grind))
+    set M0' : Term Var := Q0 ^* x0
     -- Prove the cofinite families for all `x` (using `LC Q0 = (ParBeta.regular ‹ParBeta (M0^x0) Q0›).2`, `subst_intro` with `x0∉fv M0`, `x0∉fv M'`, and `open_close_lc`):
     have h_cofinite : ∀ x ∉ xs ∪ xs2, Parallel (M0 ^ fvar x) (M0' ^ fvar x) ∧ ParEta (M0' ^ fvar x) (M' ^ fvar x) := by
       intro x hx
@@ -466,7 +464,7 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
       have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
       have h_subst'' : M' ^ fvar x = (M' ^ fvar x0)[x0:= fvar x] := Term.subst_intro _ _ _ (by grind)
       constructor
-      · rw [ h_subst, h_subst' ]
+      · rw [h_subst, h_subst']
         apply para_subst <;> grind
       · rw [h_subst', h_subst'']; exact ParEta.subst_par x0 hQ0.2 (ParEta.fvar x)
     exact ⟨etaExp^[k] M0'.abs,
@@ -474,22 +472,21 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
            parEta_etaExp (ParEta.abs (xs ∪ xs2) fun x hx => h_cofinite x hx |>.2) _⟩
   | beta xs h₁ h₂ h₃ h₄ =>
     rename_i xs M' N' M'' N''
-    obtain ⟨ k, M₁, M₂, rfl, hM₁, hM₂ ⟩ := parEta_inv_app hη
-    obtain ⟨ j, M₁b, xs', rfl, hM₁b ⟩ := parEta_inv_abs hM₁
+    obtain ⟨k, M₁, M₂, rfl, hM₁, hM₂⟩ := parEta_inv_app hη
+    obtain ⟨j, M₁b, xs', rfl, hM₁b⟩ := parEta_inv_abs hM₁
     obtain ⟨x0, hx0'⟩ := fresh_exists <| free_union [fv] Var
-    obtain ⟨ Q₁, hQ₁, hQ₂ ⟩ := h₃ x0 (by grind) ( hM₁b x0 (by grind))
-    -- Set `M₁b' = closeRec 0 x0 Q₁`.
-    set M₁b' : Term Var := closeRec 0 x0 Q₁
+    obtain ⟨Q₁, hQ₁, hQ₂⟩ := h₃ x0 (by grind) (hM₁b x0 (by grind))
+    set M₁b' : Term Var := Q₁ ^* x0
     -- Prove the cofinite families for all `x` (using `LC Q₁ = (ParBeta.regular ‹ParBeta (M₁b^x0) Q₁›).2`, `subst_intro` with `x0∉fv M₁b`, `x0∉fv N'`, and `open_close_lc`):
     have hM₁b'_family : ∀ x ∉ xs ∪ xs', Parallel (M₁b ^ fvar x) (M₁b' ^ fvar x) := by
       intro x hx
-      convert para_subst x0 hQ₁ ( Parallel.fvar x )
-      · rw [ Term.subst_intro ]
+      convert para_subst x0 hQ₁ (Parallel.fvar x)
+      · rw [Term.subst_intro]
         grind
       · rw [close_open_to_subst] <;> grind
     have hM₁b'_family' : ∀ x ∉ xs ∪ xs', ParEta (M₁b' ^ fvar x) (N' ^ fvar x) := by
       intro x hx
-      convert ParEta.subst_par x0 hQ₂ ( ParEta.fvar x )
+      convert ParEta.subst_par x0 hQ₂ (ParEta.fvar x)
       · rw [close_open_to_subst] <;> grind
       · rw [ Term.subst_intro x0 _ _ (by grind)]
     obtain ⟨ P', hP', hP'' ⟩ := h₄ hM₂
