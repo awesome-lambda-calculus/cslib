@@ -8,7 +8,7 @@ Authors: Yijun Leng
 module
 
 public import Cslib.Foundations.Relation.Confluence
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEtaConfluence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEta
 
@@ -131,11 +131,11 @@ theorem etastar_preserves_normal_beta :
   rw [Relation.TransGen.head'_iff] at hy
   exact hP (by grind)
 
-theorem Etastar_hasBetaNF {P Q : Term Var}
-    (h : P ↠ηᶠ Q) (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
-  induction h with
+theorem Etastar_hasBetaNF {P Q : Term Var} (steps : P ↠ηᶠ Q)
+  (hQ : Relation.Normalizable FullBeta Q) : Relation.Normalizable FullBeta P := by
+  induction steps with
   | refl => grind
-  | tail _ h ih => exact ih (parEta_hasBetaNF (FullEta.le_parallel _ _ h) hQ)
+  | tail _ step ih => exact ih (parEta_hasBetaNF (FullEta.le_parallel _ _ step) hQ)
 
 /-- **A term has a βη-normal form ⇔ it has a β-normal form.** -/
 theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
@@ -153,6 +153,16 @@ theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
     have h : Relation.Normalizable FullBeta y := by exists y
     obtain ⟨W, hw, hnormal⟩ := Etastar_hasBetaNF hη h
     exact ⟨W, .trans hβ hw, hnormal⟩
+
+theorem Etastar_iff_hasBetaNF {P Q : Term Var} (steps : P ↠ηᶠ Q) :
+  Relation.Normalizable FullBeta P ↔ Relation.Normalizable FullBeta Q := by
+  refine ⟨fun hP => ?_, fun hQ => Etastar_hasBetaNF steps hQ⟩
+  rw [hasBetaEtaNF_iff_hasBetaNF] at *
+  obtain ⟨Z, βηsteps, hZ⟩ := hP
+  obtain ⟨_, refl_steps, _⟩ := confluent_beta_eta βηsteps (.mono le_sup_right _ _ steps)
+  have := Relation.Normal.reflTransGen_eq hZ refl_steps
+  subst_vars
+  grind
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
