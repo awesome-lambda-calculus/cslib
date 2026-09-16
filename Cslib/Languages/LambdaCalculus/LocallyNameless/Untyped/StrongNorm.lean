@@ -169,7 +169,7 @@ lemma sn_eta_steps [DecidableEq Var] [HasFresh Var]
   | intro t h ih => constructor
                     intros t'' ht''
                     rw [reflTransGen_swap] at t_st_t'
-                    obtain ⟨_, h1, h2⟩ := eta_beta_postpone t_st_t' (.single ht'')
+                    obtain ⟨_, h1, h2⟩ := diamondcommute_etaplus_betastar t_st_t' (.single ht'')
                     rw [reflTransGen_swap] at h2
                     exact ih _ h1 h2
 
@@ -228,7 +228,7 @@ direction is de Vrijer's theorem (β-SN is preserved under η-expansion).  It is
 proved here *not* via a term-size measure (which is known to fail for absorbed
 β-steps), but via η-postponement: a β-step taken after a chain of η-steps can be
 "reset" to a genuine β-reduction from the original term followed by η-steps,
-using the strong single-step postponement lemma `eta_beta_postpone`.
+using the strong single-step postponement lemma `diamondcommute_etaplus_betastar`.
 -/
 
 
@@ -241,7 +241,7 @@ the *original* term `a0` is βη-accessible (`IHB`), and an η-chain `a0 ⟶η* 
 every η-accessible such `a'` is βη-accessible.
 
 The proof is by induction on the η-accessibility of `a'`.  A β-step
-`a' ⟶β b` is handled by η-postponement (`eta_beta_postpone`): from
+`a' ⟶β b` is handled by η-postponement (`diamondcommute_etaplus_betastar`): from
 `a0 ⟶η* a' ⟶β b` we obtain `a0 ⟶β⁺ d ⟶η* b`, so `d` is βη-accessible by `IHB`
 and `b` follows by descent along η.  An η-step `a' ⟶η b` is handled by the inner
 induction hypothesis. -/
@@ -259,7 +259,7 @@ theorem betaEtaSN_inner [DecidableEq Var] [HasFresh Var]
       rcases hb with hbeta | heta
       · -- β-step a' ⟶β b
         rw [reflTransGen_swap] at hrel
-        obtain ⟨d, hd1, hd2⟩ := eta_beta_postpone hrel (.single hbeta)
+        obtain ⟨d, hd1, hd2⟩ := diamondcommute_etaplus_betastar hrel (.single hbeta)
         rw [reflTransGen_swap] at hd2
         exact Relation.SN.of_rel_reflTransGen (IHB d hd1) (by grind)
       · -- η-step a' ⟶η b
