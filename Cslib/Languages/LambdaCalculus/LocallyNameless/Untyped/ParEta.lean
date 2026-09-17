@@ -245,10 +245,10 @@ theorem etaExp_app_collapse
 -/
 theorem Normal.etaExp_one
   {B : Term Var} (hne : NormalNotAbs B) :
-    Normal (etaExp B) := by
-    apply Normal.abs ∅
+    BetaNfLc (etaExp B) := by
+    refine .abs ∅ ?_
     intro x hx
-    exact Normal.app (by grind) (by grind) (.fvar _)
+    exact .app (by grind) (by grind) (.fvar _)
 
 /-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
 theorem parEta_etaExp
@@ -330,7 +330,7 @@ it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
 -/
 theorem etaExp_NormalNotAbs_normalForm
   {B : Term Var} (hne : NormalNotAbs B) (k : ℕ) :
-    ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ Normal M := by
+    ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ BetaNfLc M := by
   -- If k = 0, we can take M = B.
   by_cases hk : k = 0
   · exact ⟨B, by subst hk; exact Relation.ReflTransGen.refl, hne.1⟩
@@ -369,8 +369,8 @@ theorem parBeta_etaExp_congr
 /-- **Core reconstruction.**  If `A` is normal and `L ⟹η A` (a single parallel
 η-step), then `L` β-reduces to a normal form; moreover if `A` is NormalNotAbs, `L`
 β-reduces to a tower `(B)_k` over a NormalNotAbs base `B`. -/
-theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
-    (∃ M, L ↠βᶠ M ∧ Normal M) ∧
+theorem core_par {A : Term Var} (hA : BetaNfLc A) : ∀ L, ParEta L A →
+    (∃ M, L ↠βᶠ M ∧ BetaNfLc M) ∧
     (NormalNotAbs A → ∃ k B, L ↠βᶠ (etaExp^[k] B) ∧ NormalNotAbs B) := by
   induction hA with
   | fvar x =>
@@ -387,7 +387,7 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
       have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
         (FullBeta.redex_app_l_cong hB1red lcN').trans
           ((FullBeta.redex_app_r_cong  hNred (etaExp_lc (NormalNotAbs.lc hB1neu) k1)).trans
-            (etaExp_app_collapse (NormalNotAbs.lc hB1neu) (Normal.lc hNnorm) k1))
+            (etaExp_app_collapse (NormalNotAbs.lc hB1neu) (BetaNfLc.lc hNnorm) k1))
       have hBneu : NormalNotAbs (app B1 Nhat) := NormalNotAbs.app hB1neu hNnorm
       have hcongr : (etaExp^[j] (app M' N')) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
         etaExp_betaStar_congr hcollapse j
@@ -407,16 +407,16 @@ theorem core_par {A : Term Var} (hA : Normal A) : ∀ L, ParEta L A →
         have e2 : D  ^ fvar x = C0[x0 := fvar x] := by rw [hDdef, close_open_to_subst] <;> grind
         rw [e1, e2]
         exact FullBeta.redex_subst_cong_ls _ _ _ _ hC0red (LC.fvar x)
-      have hDnormal : Normal D.abs := by
-        refine Normal.abs (∅ : Finset Var) (fun x _ => ?_)
+      have hDnormal : BetaNfLc D.abs := by
+        refine .abs (∅ : Finset Var) (fun x _ => ?_)
         have e2 : D ^ fvar x = C0[x0 := fvar x] := by rw [hDdef, close_open_to_subst] <;> grind
         rw [e2]
-        exact Normal.subst_fvar hC0norm x0 x
+        exact .subst_fvar hC0norm x0 x
       have hDabs : (Term.abs body') ↠βᶠ D.abs :=
         FullBeta.redex_abs_cong (∅ : Finset Var) (fun x _ => hDred x)
       exact ⟨⟨D.abs,
         (etaExp_betaStar_congr hDabs j).trans
-          (etaExp_abs_collapse (Normal.lc hDnormal) j), hDnormal⟩, by grind⟩
+          (etaExp_abs_collapse (BetaNfLc.lc hDnormal) j), hDnormal⟩, by grind⟩
 
 
 /-! ## Parallel η/β postponement (Takahashi's Lemma 3.4) -/
@@ -523,11 +523,7 @@ theorem parEta_hasBetaNF {P Q : Term Var}
                            Relation.Normalizable FullBeta P := by
   obtain ⟨N, hQN, hN⟩ := hQ
   -- `N` is the β-normal form of `Q`; it is locally closed and hence `Normal`.
-  have hNlc : LC N := by  apply FullBeta.steps_lc_or_rfl at hQN
-                          cases hQN with
-                          | inl _ => grind
-                          | inr hQN =>  subst Q
-                                        grind [ParEta.step_lc_r h]
+  have hNlc : LC N := by cases (FullBeta.steps_lc_or_rfl hQN) with grind [ParEta.step_lc_r h]
   simp only [<- reflTransGen_parallel_fullBeta] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
   obtain ⟨P', hPP', hP'N⟩ :=
@@ -537,7 +533,7 @@ theorem parEta_hasBetaNF {P Q : Term Var}
   -- The η-expansion `P' ⟹η N` of the normal form `N` has a β-normal form.
   obtain ⟨M, hP'M, hMnorm⟩ := (core_par (betaNF_normal hNlc hN) P' hP'N).1
   simp only [reflTransGen_parallel_fullBeta] at hPP'
-  apply  Normal.betaNF at hMnorm
+  apply BetaNfLc.betaNF at hMnorm
   exact ⟨M, .trans hPP' hP'M, hMnorm⟩
 
 
