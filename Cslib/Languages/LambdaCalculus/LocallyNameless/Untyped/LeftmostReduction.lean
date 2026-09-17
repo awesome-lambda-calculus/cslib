@@ -193,15 +193,10 @@ theorem countRedexes_equiv_full_beta :
     induction h_lc with
     | fvar _ => simp [countRedexes] at h_redex
     | @abs L e h_body ih =>
-      have h_redex_e : countRedexes e > 0 := h_redex
       have ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-      have h_redex_open : countRedexes (e ^ Term.fvar x) > 0 := by
-        unfold open'
-        rw [countRedexes_openRec_fvar]
-        exact h_redex_e
+      have h_redex_open : countRedexes (e ^ Term.fvar x) > 0 := by grind [countRedexes_openRec_fvar]
       have ⟨N, hN⟩ := ih x (by grind) h_redex_open
-      have hclose : ((e ^ Term.fvar x) ^* x).abs ⭢βᶠ (N ^* x).abs :=
-        FullBeta.step_abs_close hN
+      have hclose : ((e ^ Term.fvar x) ^* x).abs ⭢βᶠ (N ^* x).abs := FullBeta.step_abs_close hN
       rw [show (e ^ Term.fvar x) ^* x = e from (open_close_var x e (by grind)).symm] at hclose
       exact ⟨_, hclose⟩
     | @app l r lc_l lc_r ih_l ih_r =>
@@ -235,7 +230,6 @@ theorem countRedexes_equiv_full_beta :
         unfold countRedexes
         have ⟨x, hx⟩ := fresh_exists xs
         specialize ih x hx
-        unfold open' at ih
         rw [countRedexes_openRec_fvar] at ih
         omega
 
