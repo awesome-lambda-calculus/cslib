@@ -35,8 +35,9 @@ open Relation Function
 
 variable {Var : Type u} [DecidableEq Var] [HasFresh Var]
 
-/-! ## The strong local commutation property -/
-
+/-- An η-step followed by a β-step can be postponed: if `P →ηᶠ Q` and `Q →βᶠ R`,
+then there exists `S` such that `TransGen FullBeta P S` and `S ↠ηᶠ R`.
+The β-reduction from `P` to `S` is nonempty, while the η-reduction may take zero steps. -/
 theorem WeakPostpone_eta_beta : WeakPostpone (swap (FullEta (Var := Var))) FullBeta := by
   intros y z x hβ hη
   induction hη generalizing z with
@@ -94,6 +95,9 @@ theorem WeakPostpone_eta_beta : WeakPostpone (swap (FullEta (Var := Var))) FullB
           rw [subst_open, subst_fvar] at g <;> grind
         · cases hw2 <;> apply FullBeta.step_lc_r <;> assumption
 
+/-- An η-reduction followed by a β-reduction can be postponed: if `P ↠ηᶠ Q` and
+`Q ↠βᶠ R`, then there exists `S` such that `P ↠βᶠ S` and `S ↠ηᶠ R`.
+All reduction sequences may take zero steps. -/
 theorem commute_etastar_beta : Commute (swap FullEta) (FullBeta (Var := Var)) := by
   intros _ _ _ hη hβ
   simp only [<- reflTransGen_parallel_fullBeta] at hβ
@@ -113,6 +117,9 @@ theorem eta_postpone {M N : Term Var} (h : M ↠βηᶠ N) :
   rw [reflTransGen_swap] at g
   grind
 
+/-- If `P ⟶η Q` and `Q ⟶β R`, then there is some `P'` with `P ⟶β P'` and
+`P' ↠η R`. This is the diamond-commutation form of βη-postponement.
+-/
 theorem diamondcommute_etaplus_betastar :
     DiamondCommute (ReflTransGen (swap FullEta)) (TransGen (FullBeta (Var := Var))) :=
   star_over_plus _ _ (single_over_plus _ _ commute_etastar_beta WeakPostpone_eta_beta)
