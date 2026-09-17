@@ -7,10 +7,10 @@ Authors: Yijun Leng
 
 module
 
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.NormalBeta
 public import Cslib.Foundations.Relation.Attr
 public import Cslib.Foundations.Relation.Defs
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaNfLc
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 
 /-!
 # Parallel η-reduction and Takahashi's Lemma 3.7
@@ -241,10 +241,10 @@ theorem etaExp_app_collapse
 
 
 /-
-`(B)_1` of a NormalNotAbs base `B` is normal.
+`(B)_1` of a BetaNfLcNotAbs base `B` is normal.
 -/
 theorem Normal.etaExp_one
-  {B : Term Var} (hne : NormalNotAbs B) :
+  {B : Term Var} (hne : BetaNfLcNotAbs B) :
     BetaNfLc (etaExp B) := by
     refine .abs ∅ ?_
     intro x hx
@@ -325,11 +325,11 @@ theorem etaExp_abs_collapse {C : Term Var} (hC : C.abs.LC) (k : ℕ) :
 /-! ## Normal forms of η-expansion towers -/
 
 /-
-A tower of η-expansions over a **NormalNotAbs** base has a normal (β-nf) form:
+A tower of η-expansions over a **BetaNfLcNotAbs** base has a normal (β-nf) form:
 it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
 -/
 theorem etaExp_NormalNotAbs_normalForm
-  {B : Term Var} (hne : NormalNotAbs B) (k : ℕ) :
+  {B : Term Var} (hne : BetaNfLcNotAbs B) (k : ℕ) :
     ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ BetaNfLc M := by
   -- If k = 0, we can take M = B.
   by_cases hk : k = 0
@@ -344,7 +344,7 @@ theorem etaExp_NormalNotAbs_normalForm
       rw [heq, Function.iterate_add]
       apply FullBeta.redex_abs_cong ∅
       intro x hx
-      apply NormalNotAbs.lc at hne
+      apply BetaNfLcNotAbs.lc at hne
       unfold openRec
       rw [open_lc _ _ B hne, open_lc]
       apply etaExp_app_collapse <;> grind
@@ -367,17 +367,17 @@ theorem parBeta_etaExp_congr
 /-! ## The reconstruction (core of Lemma 3.6) -/
 
 /-- **Core reconstruction.**  If `A` is normal and `L ⟹η A` (a single parallel
-η-step), then `L` β-reduces to a normal form; moreover if `A` is NormalNotAbs, `L`
-β-reduces to a tower `(B)_k` over a NormalNotAbs base `B`. -/
+η-step), then `L` β-reduces to a normal form; moreover if `A` is BetaNfLcNotAbs, `L`
+β-reduces to a tower `(B)_k` over a BetaNfLcNotAbs base `B`. -/
 theorem core_par {A : Term Var} (hA : BetaNfLc A) : ∀ L, ParEta L A →
     (∃ M, L ↠βᶠ M ∧ BetaNfLc M) ∧
-    (NormalNotAbs A → ∃ k B, L ↠βᶠ (etaExp^[k] B) ∧ NormalNotAbs B) := by
+    (BetaNfLcNotAbs A → ∃ k B, L ↠βᶠ (etaExp^[k] B) ∧ BetaNfLcNotAbs B) := by
   induction hA with
   | fvar x =>
       intro L hL
       obtain ⟨k, rfl⟩ := parEta_inv_fvar hL
-      exact ⟨etaExp_NormalNotAbs_normalForm (NormalNotAbs.fvar x) k,
-        fun _ => ⟨k, Term.fvar x, Relation.ReflTransGen.refl, NormalNotAbs.fvar x⟩⟩
+      exact ⟨etaExp_NormalNotAbs_normalForm (BetaNfLcNotAbs.fvar x) k,
+        fun _ => ⟨k, Term.fvar x, Relation.ReflTransGen.refl, BetaNfLcNotAbs.fvar x⟩⟩
   | @app M N hM hMne hN ihM ihN =>
       intro L hL
       obtain ⟨j, M', N', rfl, hM', hN'⟩ := parEta_inv_app hL
@@ -386,9 +386,9 @@ theorem core_par {A : Term Var} (hA : BetaNfLc A) : ∀ L, ParEta L A →
       obtain ⟨Nhat, hNred, hNnorm⟩ := (ihN N' hN').1
       have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
         (FullBeta.redex_app_l_cong hB1red lcN').trans
-          ((FullBeta.redex_app_r_cong  hNred (etaExp_lc (NormalNotAbs.lc hB1neu) k1)).trans
-            (etaExp_app_collapse (NormalNotAbs.lc hB1neu) (BetaNfLc.lc hNnorm) k1))
-      have hBneu : NormalNotAbs (app B1 Nhat) := NormalNotAbs.app hB1neu hNnorm
+          ((FullBeta.redex_app_r_cong  hNred (etaExp_lc (BetaNfLcNotAbs.lc hB1neu) k1)).trans
+            (etaExp_app_collapse (BetaNfLcNotAbs.lc hB1neu) (BetaNfLc.lc hNnorm) k1))
+      have hBneu : BetaNfLcNotAbs (app B1 Nhat) := BetaNfLcNotAbs.app hB1neu hNnorm
       have hcongr : (etaExp^[j] (app M' N')) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
         etaExp_betaStar_congr hcollapse j
       obtain ⟨M2, h2red, h2norm⟩ := etaExp_NormalNotAbs_normalForm hBneu j
