@@ -14,10 +14,9 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaAt
 
 /-! # Beta-normal forms in the locally nameless λ-calculus
 
-This file defines `BetaNfLc`, the inductive predicate of β-normal terms in the
-untyped locally nameless λ-calculus. Its application constructor excludes
-abstractions in function position, while its abstraction constructor checks the
-body after opening it with every fresh variable.
+This file defines `BetaNfLc`, the inductive predicate of locally-closed β-normal forms.
+Its application constructor excludes abstractions in function position,
+while its abstraction constructor checks the body after opening it with every fresh variable.
 
 The file proves that `BetaNfLc` terms are locally closed and are normal with
 respect to `FullBeta`, and that the predicate is preserved by free-variable
