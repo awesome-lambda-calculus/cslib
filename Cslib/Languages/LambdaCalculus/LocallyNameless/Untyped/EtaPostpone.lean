@@ -19,6 +19,10 @@ The key single-step local postponement: an η-step followed by a parallel β-ste
 can be reorganized into a parallel β-step followed by η-steps,
 `FullEta · ParBeta ⊆ ParBeta · FullEtaStar`.
 
+## Reference
+
+* [Y. Takahashi, *Parallel Reductions in λ-Calculus*][Takahashi1995]
+
 -/
 
 @[expose] public section
