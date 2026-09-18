@@ -110,8 +110,7 @@ theorem WeakPostpone_eta_beta : WeakPostpone (swap (FullEta (Var := Var))) FullB
           rw [subst_open, subst_fvar] at g <;> grind
         · cases hw2 <;> apply FullBeta.step_lc_r <;> assumption
 
-/-- An η-reduction followed by a β-reduction can be postponed: if `P ↠ηᶠ Q` and
-`Q ↠βᶠ R`, then there exists `S` such that `P ↠βᶠ S` and `S ↠ηᶠ R`. -/
+/-- If `P ↠ηᶠ Q` and `Q ↠βᶠ R`, then there exists `S` such that `P ↠βᶠ S` and `S ↠ηᶠ R`. -/
 theorem commute_etastar_beta : Commute (swap FullEta) (FullBeta (Var := Var)) := by
   intros _ _ _ hη hβ
   simp only [<- reflTransGen_parallel_fullBeta] at hβ
@@ -130,9 +129,7 @@ theorem eta_postpone {M N : Term Var} (h : M ↠βηᶠ N) : ∃ L, M ↠βᶠ L
   rw [reflTransGen_swap] at g
   grind
 
-/-- If `P ↠η Q` and `Q ⟶β R`, then there is some `P'` with `P ⟶β P'` and
-`P' ↠η R`. This is the diamond-commutation form of βη-postponement.
--/
+/-- If `P ↠ηᶠ Q` and `Q ↠β+ R`, then there exists `P'` with `P ↠β+  P'` and `P' ↠ηᶠ R`. -/
 theorem diamondcommute_etaplus_betastar :
     DiamondCommute (ReflTransGen (swap FullEta)) (TransGen (FullBeta (Var := Var))) :=
   star_over_plus _ _ (single_over_plus _ _ commute_etastar_beta WeakPostpone_eta_beta)
