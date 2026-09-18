@@ -188,7 +188,7 @@ theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : BetaNormal N
 
 theorem countRedexes_equiv_full_beta :
     (countRedexes M > 0 ∧ M.LC) ↔ Relation.Reducible FullBeta M := by
-  constructor
+  refine ⟨?_, ?_⟩
   · rintro ⟨h_redex, h_lc⟩
     induction h_lc with
     | fvar _ => simp [countRedexes] at h_redex
@@ -216,9 +216,7 @@ theorem countRedexes_equiv_full_beta :
             cases hh : countRedexes (Term.app l1 l2)
             · rfl
             · omega
-          rw [hl_false] at h_or
-          have hr : countRedexes r > 0 := by omega
-          have ⟨N, hN⟩ := ih_r hr
+          have ⟨N, hN⟩ := ih_r (by omega)
           exact ⟨_, Xi.appL lc_l hN⟩
   · rintro ⟨N, hN⟩
     refine ⟨?_, FullBeta.step_lc_l hN⟩
