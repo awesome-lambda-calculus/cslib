@@ -10,26 +10,22 @@ module
 public import Cslib.Foundations.Relation.Attr
 public import Cslib.Foundations.Relation.Defs
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaNfLc
-public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaConfluence
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 
-/-!
-# Parallel η-reduction and Takahashi's Lemma 3.7
+/-!  # Parallel η-reduction
 
-This file formalises Takahashi's **parallel η-reduction** `⟹_η` (Definition 3.1
-of "Parallel Reductions in λ-Calculus", *Information and Computation* 118 (1995),
-120–127) in the locally nameless representation, together with **Lemma 3.7**:
+This file formalises [Takahashi1995] Section 3.
 
-  *If `P ⟹_η Q` and `P` is in β-normal form, then so is `Q`.*
+## Design
 
-The paper's Definition 3.1 reads
-  * (η1) `x ⟹_η x`,
-  * (η2) `λx.M ⟹_η λx.M'` if `M ⟹_η M'`,
-  * (η3) `M N ⟹_η M' N'` if `M ⟹_η M'` and `N ⟹_η N'`,
-  * (η4) `λz.M z ⟹_η M'` if `M ⟹_η M'` and `z ∉ FV(M)`.
+This file only contain theorems related to `ParEta` and `etaExp`.
+Eta-postpone theorem, see `EtaPostpone.lean`
 
-In the locally nameless setting `z ∉ FV(M)` is expressed by requiring `M` to be
-locally closed (so its body `app M (bvar 0)` uses the bound variable `bvar 0`
-exactly once, at the tail, and `M` itself does not mention it).
+## Reference
+
+* [Y. Takahashi, *Parallel Reductions in λ-Calculus*][Takahashi1995]
+
 -/
 
 
@@ -47,24 +43,23 @@ open Relation Function
 
 variable {Var : Type u}
 
-/-- **Parallel η-reduction** `⟹_η` (Takahashi, Definition 3.1). -/
+/-- A parallel η-reduction step. -/
 inductive ParEta : Term Var → Term Var → Prop
-  /-- (η1) A free variable reduces to itself. -/
+/-- Free variables parallel step to themselves. -/
   | fvar (x : Var) : ParEta (fvar x) (fvar x)
-  /-- (η3) Congruence for application. -/
+/-- A parallel left and right congruence rule for application. -/
   | app {M M' N N' : Term Var} :
       ParEta M M' → ParEta N N' → ParEta (app M N) (app M' N')
-  /-- (η2) Congruence for abstraction (cofinite quantification). -/
+/-- Congruence rule for lambda terms. -/
   | abs (xs : Finset Var) {M M' : Term Var} :
       (∀ x ∉ xs, ParEta (M ^ fvar x) (M' ^ fvar x)) → ParEta (abs M) (abs M')
-  /-- (η4) Parallel contraction of an η-redex `λz.M z ⟹_η M'`.  Local closure of
-  `M` encodes `z ∉ FV(M)`. -/
+/-- A parallel η-reduction. -/
   | eta {M M' : Term Var} :
       LC M → ParEta M M' → ParEta (abs (app M (bvar 0))) M'
 
 /-- Parallel η-reduction is reflexive on locally closed terms. -/
 @[scoped grind ->]
-theorem ParEta.refl {M : Term Var} (h : LC M) : ParEta M M := by
+theorem ParEta.lc_refl {M : Term Var} (h : LC M) : ParEta M M := by
   induction h with
   | fvar x => exact ParEta.fvar x
   | abs xs t _ ih => exact ParEta.abs xs ih
@@ -74,9 +69,9 @@ theorem FullEta.le_parallel : (· ⭢ηᶠ ·) ≤ (ParEta : Term Var → Term V
   intro M N step
   induction step with
   | base h => cases h
-              exact ParEta.eta (by assumption) (ParEta.refl (by assumption))
-  | appL _ _ _ => exact ParEta.app (ParEta.refl (by assumption)) (by assumption)
-  | appR _ _ _ => exact ParEta.app (by assumption) (ParEta.refl (by assumption))
+              exact ParEta.eta (by assumption) (ParEta.lc_refl (by assumption))
+  | appL _ _ _ => exact ParEta.app (ParEta.lc_refl (by assumption)) (by assumption)
+  | appR _ _ _ => exact ParEta.app (by assumption) (ParEta.lc_refl (by assumption))
   | abs xs _ ih => exact ParEta.abs xs ih
 
 @[scoped grind ->]
@@ -104,8 +99,8 @@ theorem ParEta.le_reflTransGen_fullEta [DecidableEq Var] [HasFresh Var] :
   | fvar x => exact Relation.ReflTransGen.refl
   | eta hM hMM' ih => exact .head (Xi.base (.eta hM)) ih
   | @app M M' N N' hM hN ihM ihN =>
-      exact Relation.ReflTransGen.trans (FullEta.redex_app_l_cong ihM ((ParEta.step_lc_l hN)))
-                                        (FullEta.redex_app_r_cong ihN ((ParEta.step_lc_r hM)))
+      exact .trans (FullEta.redex_app_l_cong ihM ((ParEta.step_lc_l hN)))
+                   (FullEta.redex_app_r_cong ihN ((ParEta.step_lc_r hM)))
   | abs xs h ih => exact FullEta.redex_abs_cong xs ih
 
 theorem reflTransGen_parallel_fullEta [DecidableEq Var] [HasFresh Var]
@@ -114,27 +109,23 @@ theorem reflTransGen_parallel_fullEta [DecidableEq Var] [HasFresh Var]
   · exact reflTransGen_le_of_le ParEta.le_reflTransGen_fullEta
   · exact ReflTransGen.mono FullEta.le_parallel
 
-/-
-Substitutivity of parallel η-reduction.
--/
-theorem ParEta.subst_par [DecidableEq Var] [HasFresh Var] {A A' B B' : Term Var} (z : Var)
-    (hA : ParEta A A') (hB : ParEta B B') :
-    ParEta (A[z := B]) (A'[z:= B']) := by
-  induction hA generalizing B B' with
-  | fvar x => grind
+/-- Parallel reduction respects substitution. -/
+theorem ParEta.para_subst [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} (x : Var)
+  (pm : ParEta M M') (pn : ParEta N N') :
+    ParEta (M[x:=N]) (M'[x:= N']) := by
+  induction pm generalizing N N' with
+  | fvar _ => grind
   | app _ _ _ _ => exact ParEta.app (by grind) (by grind)
-  | abs xs h ih => exact ParEta.abs (xs ∪ { z }) fun x hx => by grind
-  | eta hM hMM' ih => exact ParEta.eta (Term.subst_lc hM hB.step_lc_l) (ih hB)
+  | abs xs h ih => exact ParEta.abs (xs ∪ { x }) fun x hx => by grind
+  | eta hM hMM' ih => exact ParEta.eta (Term.subst_lc hM pn.step_lc_l) (ih pn)
 
-/-
-Opening congruence for parallel η-reduction.
--/
-theorem ParEta.open_par [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} (xs : Finset Var)
+/-- Parallel substitution respects fresh opening. -/
+theorem ParEta.para_open_out [DecidableEq Var] [HasFresh Var] {M M' N N' : Term Var} (xs : Finset _)
     (hbody : ∀ x ∉ xs, ParEta (M ^ Term.fvar x) (M' ^ Term.fvar x))
     (hN : ParEta N N') :
     ParEta (M ^ N) (M' ^ N') := by
   have ⟨z, hz⟩ := fresh_exists <| free_union [fv] Var
-  convert ParEta.subst_par z (hbody z (by grind)) hN
+  convert ParEta.para_subst z (hbody z (by grind)) hN
   · rw [Term.subst_intro z _ _ (by grind)]
   · rw [Term.subst_intro z _ _ (by grind)]
 
@@ -309,9 +300,8 @@ theorem etaExp_abs_collapse {C : Term Var} (hC : C.abs.LC) (k : ℕ) :
     (etaExp^[k] C.abs) ↠βᶠ C.abs := by
   have h_beta : FullBeta (C.abs.app (bvar 0)).abs C.abs := by
     obtain ⟨x, hx⟩ := fresh_exists <| free_union [fv] Var
-    apply Xi.abs { x }
-    intro y hy
-    grind [Xi.base (Beta.beta (show LC C.abs from hC) (show LC (fvar y) from LC.fvar y))]
+    exact .abs { x } fun y _ =>
+      by grind [Xi.base (Beta.beta (show LC C.abs from hC) (show LC (fvar y) from LC.fvar y))]
   induction k with
   | zero =>  exact .refl
   | succ k ih =>
@@ -331,7 +321,6 @@ it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
 theorem etaExp_NormalNotAbs_normalForm
   {B : Term Var} (hne : BetaNfLcNotAbs B) (k : ℕ) :
     ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ BetaNfLc M := by
-  -- If k = 0, we can take M = B.
   by_cases hk : k = 0
   · exact ⟨B, by subst hk; exact Relation.ReflTransGen.refl, hne.1⟩
   · obtain ⟨k, rfl⟩ := Nat.exists_eq_succ_of_ne_zero hk
@@ -386,7 +375,7 @@ theorem core_par {A : Term Var} (hA : BetaNfLc A) : ∀ L, ParEta L A →
       obtain ⟨Nhat, hNred, hNnorm⟩ := (ihN N' hN').1
       have hcollapse : (app M' N') ↠βᶠ (app B1 Nhat) :=
         (FullBeta.redex_app_l_cong hB1red lcN').trans
-          ((FullBeta.redex_app_r_cong  hNred (etaExp_lc (BetaNfLcNotAbs.lc hB1neu) k1)).trans
+          ((FullBeta.redex_app_r_cong hNred (etaExp_lc (BetaNfLcNotAbs.lc hB1neu) k1)).trans
             (etaExp_app_collapse (BetaNfLcNotAbs.lc hB1neu) (BetaNfLc.lc hNnorm) k1))
       have hBneu : BetaNfLcNotAbs (app B1 Nhat) := BetaNfLcNotAbs.app hB1neu hNnorm
       have hcongr : (etaExp^[j] (app M' N')) ↠βᶠ (etaExp^[j] (app B1 Nhat)) :=
@@ -456,7 +445,7 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
       have h_subst' : M0' ^ fvar x = Q0[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
       have h_subst'' : M' ^ fvar x = (M' ^ fvar x0)[x0:= fvar x] := subst_intro _ _ _ (by grind)
       rw [h_subst', h_subst'']
-      exact ParEta.subst_par x0 hQ0.2 (ParEta.fvar x)
+      exact ParEta.para_subst x0 hQ0.2 (ParEta.fvar x)
     exact ⟨etaExp^[k] M0'.abs,
            parBeta_etaExp_congr (Parallel.abs (xs ∪ xs2) hM0_cofinite) _,
            parEta_etaExp (ParEta.abs (xs ∪ xs2) hM0'_cofinite) _⟩
@@ -475,22 +464,20 @@ theorem parEta_parBeta_postpone : DiamondCommute (swap (ParEta (Var := Var))) Pa
       have hsub : M₁b ^ fvar x = (M₁b ^ fvar x0)[x0 := fvar x] := by
         rw [Term.subst_intro]
         grind
-      have hsub' : M₁b' ^ fvar x = Q₁[x0 := fvar x] := by
-        rw [close_open_to_subst] <;> grind
+      have hsub' : M₁b' ^ fvar x = Q₁[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
       rw [hsub, hsub']
       exact para_subst x0 hQ₁ (Parallel.fvar x)
     have hM₁b'_family' : ∀ x ∉ xs ∪ xs', ParEta (M₁b' ^ fvar x) (N' ^ fvar x) := by
       intro x hx
-      have hsub : M₁b' ^ fvar x = Q₁[x0 := fvar x] := by
-        rw [close_open_to_subst] <;> grind
+      have hsub : M₁b' ^ fvar x = Q₁[x0 := fvar x] := by rw [close_open_to_subst] <;> grind
       have hsub' : N' ^ fvar x = (N' ^ fvar x0)[x0 := fvar x] := by
-        rw [Term.subst_intro x0 _ _ (by grind)]
+        rw [subst_intro x0 _ _ (by grind)]
       rw [hsub, hsub']
-      exact ParEta.subst_par x0 hQ₂ (ParEta.fvar x)
+      exact ParEta.para_subst x0 hQ₂ (ParEta.fvar x)
     obtain ⟨P', hP', hP''⟩ := h₄ hM₂
     exact ⟨etaExp^[k] (M₁b' ^ P'),
            parBeta_etaExp_congr (parBeta_etaExp_abs_app (xs ∪ xs') hM₁b'_family hP' j) k,
-           parEta_etaExp (ParEta.open_par _ hM₁b'_family' hP'') k⟩
+           parEta_etaExp (ParEta.para_open_out _ hM₁b'_family' hP'') k⟩
 
 
 /-!
@@ -522,7 +509,6 @@ theorem parEta_hasBetaNF {P Q : Term Var}
     (h : ParEta P Q) (hQ : Relation.Normalizable FullBeta Q) :
                            Relation.Normalizable FullBeta P := by
   obtain ⟨N, hQN, hN⟩ := hQ
-  -- `N` is the β-normal form of `Q`; it is locally closed and hence `Normal`.
   have hNlc : LC N := by cases (FullBeta.steps_lc_or_rfl hQN) with grind [ParEta.step_lc_r h]
   simp only [<- reflTransGen_parallel_fullBeta] at hQN
   -- LocalPostpone the η-step past all β-steps: `P ⟹β* P' ⟹η N`.
@@ -533,8 +519,7 @@ theorem parEta_hasBetaNF {P Q : Term Var}
   -- The η-expansion `P' ⟹η N` of the normal form `N` has a β-normal form.
   obtain ⟨M, hP'M, hMnorm⟩ := (core_par (betaNF_normal hNlc hN) P' hP'N).1
   simp only [reflTransGen_parallel_fullBeta] at hPP'
-  apply BetaNfLc.betaNF at hMnorm
-  exact ⟨M, .trans hPP' hP'M, hMnorm⟩
+  exact ⟨M, .trans hPP' hP'M, BetaNfLc.betaNF hMnorm⟩
 
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
