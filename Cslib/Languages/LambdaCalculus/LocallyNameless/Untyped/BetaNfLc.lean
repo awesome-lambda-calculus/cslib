@@ -12,19 +12,18 @@ public import Cslib.Foundations.Relation.Defs
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaAt
 
-/-!  # BetaNfLc β-forms in the locally nameless λ-calculus
+/-! # Beta-normal forms in the locally nameless λ-calculus
 
-This file develops the syntactic notion of a normal term for the untyped locally
-nameless λ-calculus and proves that it coincides with the semantic notion of a
-locally closed β-normal form.
+This file defines `BetaNfLc`, the inductive predicate of β-normal terms in the
+untyped locally nameless λ-calculus. Its application constructor excludes
+abstractions in function position, while its abstraction constructor checks the
+body after opening it with every fresh variable.
 
-The central facts are:
-* every normal term is locally closed;
-* every normal term is a β-normal form;
-* conversely, every locally closed β-normal form is normal.
-
-These lemmas are used to characterize the β-normal forms of the calculus and to
-reason about η/β commutation in related developments.
+The file proves that `BetaNfLc` terms are locally closed and are normal with
+respect to `FullBeta`, and that the predicate is preserved by free-variable
+substitution. The converse theorem shows that every locally closed `FullBeta`
+normal term satisfies `BetaNfLc`; together these results are stated as
+`betaNF_iff`.
 -/
 
 
