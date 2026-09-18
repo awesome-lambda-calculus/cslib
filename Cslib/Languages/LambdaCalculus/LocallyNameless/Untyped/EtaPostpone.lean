@@ -12,12 +12,23 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Abstract
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.ParEta
 
-/-!
-# Takahashi's η/β commutation lemma
+/-!  # Takahashi's η/β commutation lemma
 
-The key single-step local postponement: an η-step followed by a parallel β-step
-can be reorganized into a parallel β-step followed by η-steps,
-`FullEta · ParBeta ⊆ ParBeta · FullEtaStar`.
+This file presents 4 postponement theorems for moving η-reduction behind
+β-reduction.
+
+## Main results
+
+* `WeakPostpone_eta_beta`: if `P →ηᶠ Q` and `Q →βᶠ R`, then there is a term
+  `S` with `P ↠β+ S` and `S ↠ηᶠ R`. Thus a single full η-step followed by a
+  single full β-step can be reordered so that β happens first; the β part is
+  nonempty, while the η part may be reflexive.
+* `commute_etastar_beta`: if `P ↠ηᶠ Q` and `Q ↠βᶠ R`, then there is a term
+  `S` with `P ↠βᶠ S` and `S ↠ηᶠ R`.
+* `eta_postpone`: if `P ↠βηᶠ Q`, then there is a term `L` such that
+  `P ↠βᶠ L` and `L ↠ηᶠ Q`.
+* `diamondcommute_etaplus_betastar`: if `P →ηᶠ Q` and `Q →β+ R`, then there is
+  a term `S` with `P ↠β+ S` and `S ↠ηᶠ R`.
 
 ## Reference
 
@@ -113,27 +124,22 @@ theorem commute_etastar_beta : Commute (swap FullEta) (FullBeta (Var := Var)) :=
   rw [reflTransGen_swap] at *
   exact reflTransGen_le_of_le ParEta.le_reflTransGen_fullEta _ _ g
 
-theorem eta_postpone {M N : Term Var} (h : M ↠βηᶠ N) :
-    ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
+theorem eta_postpone {M N : Term Var} (h : M ↠βηᶠ N) : ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
   have g := (commute_equivalents.out 2 4 rfl rfl).mp (commute_etastar_beta (Var := Var)) N M
   rw [sup_comm, reflTransGen_swap] at g
   obtain ⟨L, g, _⟩ := g h
   rw [reflTransGen_swap] at g
   grind
 
-/-- If `P ⟶η Q` and `Q ⟶β R`, then there is some `P'` with `P ⟶β P'` and
+/-- If `P ↠η Q` and `Q ⟶β R`, then there is some `P'` with `P ⟶β P'` and
 `P' ↠η R`. This is the diamond-commutation form of βη-postponement.
 -/
 theorem diamondcommute_etaplus_betastar :
     DiamondCommute (ReflTransGen (swap FullEta)) (TransGen (FullBeta (Var := Var))) :=
   star_over_plus _ _ (single_over_plus _ _ commute_etastar_beta WeakPostpone_eta_beta)
 
-/-- **Takahashi's Lemma 3.7.**  If `P ⟹_η Q` (parallel η-reduction) and `P` is a
-β-normal form, then `Q` is a β-normal form.
-
-The proof uses strong η-postponement: a single parallel η-step is an η-reduction
-`P ↠η Q`, so any β-step `Q ⟶β R` would give, by `eta_beta_postpone`, a non-empty
-β-reduction `P ⟶β⁺ ⋯`, contradicting β-normality of `P`. -/
+/-- **[Takahashi1995] 3.7.**  If `P ↠ηᶠ Q` and `P` is a β-normal form,
+  then `Q` is a β-normal form. -/
 theorem etastar_preserves_normal_beta :
   Relation.Preserves (Relation.ReflTransGen (FullEta (Var := Var))) (Relation.Normal FullBeta) := by
   rintro _ _ steps hP ⟨_, hR⟩
