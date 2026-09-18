@@ -111,8 +111,7 @@ theorem WeakPostpone_eta_beta : WeakPostpone (swap (FullEta (Var := Var))) FullB
         · cases hw2 <;> apply FullBeta.step_lc_r <;> assumption
 
 /-- An η-reduction followed by a β-reduction can be postponed: if `P ↠ηᶠ Q` and
-`Q ↠βᶠ R`, then there exists `S` such that `P ↠βᶠ S` and `S ↠ηᶠ R`.
-All reduction sequences may take zero steps. -/
+`Q ↠βᶠ R`, then there exists `S` such that `P ↠βᶠ S` and `S ↠ηᶠ R`. -/
 theorem commute_etastar_beta : Commute (swap FullEta) (FullBeta (Var := Var)) := by
   intros _ _ _ hη hβ
   simp only [<- reflTransGen_parallel_fullBeta] at hβ
@@ -157,14 +156,12 @@ theorem Etastar_hasBetaNF {P Q : Term Var} (steps : P ↠ηᶠ Q)
 /-- **A term has a βη-normal form ⇔ it has a β-normal form.** -/
 theorem hasBetaEtaNF_iff_hasBetaNF (t : Term Var) :
   Normalizable FullBeta t ↔ Normalizable FullBetaEta t := by
-  constructor
-  · rintro ⟨y, hy, hβ⟩
-    obtain ⟨z, hz, hnormal⟩ := SN.normalizable (FullEta.wellFounded.apply y)
+  refine ⟨fun ⟨y, hy, hβ⟩ => ?_, fun ⟨y, hy, hβηnormal⟩ => ?_⟩
+  · obtain ⟨z, hz, hnormal⟩ := SN.normalizable (FullEta.wellFounded.apply y)
     refine ⟨z, .trans (.mono le_sup_left _ _ hy) (.mono le_sup_right _ _ hz), fun ⟨_, h⟩ => ?_⟩
     have := etastar_preserves_normal_beta hz hβ
     cases h <;> grind
-  · rintro ⟨y, hy, hβηnormal⟩
-    obtain ⟨L, hβ, hη⟩ := eta_postpone hy
+  · obtain ⟨L, hβ, hη⟩ := eta_postpone hy
     rw [FullBetaEta.normal_fullbeta_iff] at hβηnormal
     obtain ⟨_, _⟩ := hβηnormal
     have h : Normalizable FullBeta y := by exists y
