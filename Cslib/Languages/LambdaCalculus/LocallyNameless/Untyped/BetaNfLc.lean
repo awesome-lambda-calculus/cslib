@@ -51,8 +51,6 @@ inductive BetaNfLc : Term Var → Prop where
   | abs (xs : Finset Var) {M : Term Var} :
       (∀ x ∉ xs, BetaNfLc (M ^ fvar x)) → BetaNfLc M.abs
 
-/-- A **BetaNfLcNotAbs** term is a normal term that is not an abstraction (a
-variable-headed application spine). -/
 abbrev BetaNfLcNotAbs (M : Term Var) : Prop := BetaNfLc M ∧ ¬ M.IsAbs
 
 theorem BetaNfLcNotAbs.fvar (x : Var) : BetaNfLcNotAbs (Term.fvar x : Term Var) :=
@@ -64,9 +62,6 @@ theorem BetaNfLcNotAbs.app {M N : Term Var} (hM : BetaNfLcNotAbs M) (hN : BetaNf
 
 theorem BetaNfLcNotAbs.normal {M : Term Var} (h : BetaNfLcNotAbs M) : BetaNfLc M := h.1
 
-/-
-BetaNfLc terms are locally closed.
--/
 @[grind ->]
 theorem BetaNfLc.lc {M : Term Var} (h : BetaNfLc M) : LC M := by
   induction h with
@@ -78,9 +73,6 @@ theorem BetaNfLcNotAbs.lc {M : Term Var} (h : BetaNfLcNotAbs M) : LC M := h.1.lc
 
 variable [DecidableEq Var] [HasFresh Var]
 
-/-
-BetaNfLc terms are β-normal forms.
--/
 theorem BetaNfLc.betaNF {M : Term Var} (h : BetaNfLc M) : Relation.Normal FullBeta M := by
   induction h with
   | fvar x =>
@@ -97,9 +89,6 @@ theorem BetaNfLc.betaNF {M : Term Var} (h : BetaNfLc M) : Relation.Normal FullBe
         have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
         exact ih x (by grind) ⟨_, h x (by grind)⟩
 
-/-
-Normality is preserved by renaming a free variable to another.
--/
 theorem BetaNfLc.subst_fvar {M : Term Var} (h : BetaNfLc M) (x y : Var) :
     BetaNfLc (M[x:=Term.fvar y]) := by
   induction h with
@@ -115,9 +104,6 @@ theorem BetaNfLc.subst_fvar {M : Term Var} (h : BetaNfLc M) (x y : Var) :
     rw [isAbs_subst_fvar] at hC
     grind
 
-/-
-Conversely, every locally closed β-normal form is normal.
--/
 theorem betaNF_normal {N : Term Var} (hlc : LC N) (h : Relation.Normal FullBeta N) :
   BetaNfLc N := by
   induction hlc with
