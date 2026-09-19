@@ -68,8 +68,7 @@ theorem ParEta.lc_refl {M : Term Var} (h : LC M) : ParEta M M := by
 theorem FullEta.le_parallel : (· ⭢ηᶠ ·) ≤ (ParEta : Term Var → Term Var → Prop) := by
   intro M N step
   induction step with
-  | base h => cases h
-              exact ParEta.eta (by assumption) (ParEta.lc_refl (by assumption))
+  | base h => cases h with | eta h => exact ParEta.eta h (ParEta.lc_refl h)
   | appL _ _ _ => exact ParEta.app (ParEta.lc_refl (by assumption)) (by assumption)
   | appR _ _ _ => exact ParEta.app (by assumption) (ParEta.lc_refl (by assumption))
   | abs xs _ ih => exact ParEta.abs xs ih
@@ -203,7 +202,7 @@ theorem etaExp_lc {M : Term Var} (hM : LC M) (k : ℕ) : LC (etaExp^[k] M) := by
   | zero => exact hM
   | succ k ih =>
       rw [add_comm, Function.iterate_add]
-      exact LC.abs (∅ : Finset Var) _ (by grind)
+      exact LC.abs ∅ _ (by grind)
 
 /-- The `k`-fold η-expansion η-reduces back to the original term. -/
 theorem etaExp_fullEtaStar
@@ -236,10 +235,7 @@ theorem etaExp_app_collapse
 -/
 theorem Normal.etaExp_one
   {B : Term Var} (hne : BetaNfLcNotAbs B) :
-    BetaNfLc (etaExp B) := by
-    refine .abs ∅ ?_
-    intro x hx
-    exact .app (by grind) (by grind) (.fvar _)
+    BetaNfLc (etaExp B) := .abs ∅ fun x hx => .app (by grind) (by grind) (.fvar _)
 
 /-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
 theorem parEta_etaExp
@@ -260,16 +256,11 @@ theorem parBeta_etaExp_abs_app {C C' Z Z' : Term Var} (xs : Finset Var)
     (j : ℕ) :
     Parallel (Term.app (etaExp^[j] (Term.abs C)) Z) (C' ^ Z') := by
   induction j generalizing C C' Z Z' xs with
-  | zero => apply Parallel.beta xs hbody hZ
+  | zero => exact Parallel.beta xs hbody hZ
   | succ j ih =>
-    have hCabs : C.abs.LC := by
-      have hLC : ∀ x ∉ xs, LC (C ^ fvar x) := by grind
-      apply LC.abs
-      exact hLC
+    have hCabs : C.abs.LC := LC.abs xs _ (by grind)
     rw [add_comm, Function.iterate_add]
-    apply Parallel.beta xs ?_ (by assumption)
-    intro x hx
-    grind [ih xs hbody (Parallel.fvar x), etaExp_lc hCabs j]
+    exact .beta xs (fun x hx => by grind [ih xs hbody (.fvar x), etaExp_lc hCabs j]) hZ
 
 
 variable [DecidableEq Var]
@@ -284,12 +275,13 @@ theorem etaExp_betaStar_congr
     (etaExp^[k] M) ↠βᶠ (etaExp^[k] M') := by
   cases FullBeta.steps_lc_or_rfl h with
   | inr => grind
-  | inl hM => induction k with
-  | zero => exact h
-  | succ k ih =>
-    rw [add_comm, Function.iterate_add]
-    exact FullBeta.redex_abs_cong ∅
-              (fun _ _ => FullBeta.redex_app_l_cong (by grind [etaExp_lc hM.1 k]) (.fvar _))
+  | inl hM =>
+    induction k with
+    | zero => exact h
+    | succ k ih =>
+      rw [add_comm, Function.iterate_add]
+      exact FullBeta.redex_abs_cong ∅
+                (fun _ _ => FullBeta.redex_app_l_cong (by grind [etaExp_lc hM.1 k]) (.fvar _))
 
 
 /-
@@ -331,8 +323,7 @@ theorem etaExp_NormalNotAbs_normalForm
       refine ⟨?_, by grind⟩
       have heq : (n + 1).succ = 1 + (n + 1) := by omega
       rw [heq, Function.iterate_add]
-      apply FullBeta.redex_abs_cong ∅
-      intro x hx
+      apply FullBeta.redex_abs_cong ∅ fun x hx => ?_
       apply BetaNfLcNotAbs.lc at hne
       unfold open' openRec
       rw [open_lc _ _ B hne, open_lc]
