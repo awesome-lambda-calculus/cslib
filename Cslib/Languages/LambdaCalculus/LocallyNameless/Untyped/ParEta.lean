@@ -69,8 +69,8 @@ theorem FullEta.le_parallel : (· ⭢ηᶠ ·) ≤ (ParEta : Term Var → Term V
   intro M N step
   induction step with
   | base h => cases h with | eta h => exact ParEta.eta h (ParEta.lc_refl h)
-  | appL _ _ _ => exact ParEta.app (ParEta.lc_refl (by assumption)) (by assumption)
-  | appR _ _ _ => exact ParEta.app (by assumption) (ParEta.lc_refl (by assumption))
+  | appL h_lc _ ih => exact ParEta.app (ParEta.lc_refl h_lc) ih
+  | appR h_lc _ ih => exact ParEta.app ih (ParEta.lc_refl h_lc)
   | abs xs _ ih => exact ParEta.abs xs ih
 
 @[scoped grind ->]
@@ -205,9 +205,7 @@ theorem etaExp_lc {M : Term Var} (hM : LC M) (k : ℕ) : LC (etaExp^[k] M) := by
       exact LC.abs ∅ _ (by grind)
 
 /-- The `k`-fold η-expansion η-reduces back to the original term. -/
-theorem etaExp_fullEtaStar
-  {M : Term Var} (hM : LC M) (k : ℕ) :
-    (etaExp^[k] M) ↠ηᶠ M := by
+theorem etaExp_fullEtaStar {M : Term Var} (hM : LC M) (k : ℕ) : (etaExp^[k] M) ↠ηᶠ M := by
   induction k with
   | zero => exact .refl
   | succ n ih =>
@@ -220,8 +218,7 @@ theorem etaExp_fullEtaStar
 When an η-expansion tower is **applied** to an argument, all layers
 β-collapse (linearly, no duplication): `(B)_k G ↠β B G`.
 -/
-theorem etaExp_app_collapse
-  {B G : Term Var} (hB : LC B) (hG : LC G) (k : ℕ) :
+theorem etaExp_app_collapse {B G : Term Var} (hB : LC B) (hG : LC G) (k : ℕ) :
     (app (etaExp^[k] B) G) ↠βᶠ (app B G) := by
   induction k with
   | zero => exact .refl
@@ -233,14 +230,11 @@ theorem etaExp_app_collapse
 /-
 `(B)_1` of a BetaNfLcNotAbs base `B` is normal.
 -/
-theorem Normal.etaExp_one
-  {B : Term Var} (hne : BetaNfLcNotAbs B) :
+theorem Normal.etaExp_one {B : Term Var} (hne : BetaNfLcNotAbs B) :
     BetaNfLc (etaExp B) := .abs ∅ fun x hx => .app (by grind) (by grind) (.fvar _)
 
 /-- A tower `(Y)_k` reduces to `Z` in a single parallel η-step whenever `Y ⟹η Z`. -/
-theorem parEta_etaExp
-  {Y Z : Term Var} (h : ParEta Y Z) (k : ℕ) :
-    ParEta (etaExp^[k] Y) Z := by
+theorem parEta_etaExp {Y Z : Term Var} (h : ParEta Y Z) (k : ℕ) : ParEta (etaExp^[k] Y) Z := by
   induction k with
   | zero => exact h
   | succ k ih =>
@@ -270,8 +264,7 @@ variable [DecidableEq Var]
 /-
 Congruence: β-reducing the base β-reduces the whole tower.
 -/
-theorem etaExp_betaStar_congr
-  {M M' : Term Var} (h : M ↠βᶠ M') (k : ℕ) :
+theorem etaExp_betaStar_congr {M M' : Term Var} (h : M ↠βᶠ M') (k : ℕ) :
     (etaExp^[k] M) ↠βᶠ (etaExp^[k] M') := by
   cases FullBeta.steps_lc_or_rfl h with
   | inr => grind
@@ -310,8 +303,7 @@ theorem etaExp_abs_collapse {C : Term Var} (hC : C.abs.LC) (k : ℕ) :
 A tower of η-expansions over a **BetaNfLcNotAbs** base has a normal (β-nf) form:
 it β-collapses to `(B)_1` (or to `B` itself when `k = 0`).
 -/
-theorem etaExp_NormalNotAbs_normalForm
-  {B : Term Var} (hne : BetaNfLcNotAbs B) (k : ℕ) :
+theorem etaExp_NormalNotAbs_normalForm {B : Term Var} (hne : BetaNfLcNotAbs B) (k : ℕ) :
     ∃ M, (etaExp^[k] B) ↠βᶠ M ∧ BetaNfLc M := by
   by_cases hk : k = 0
   · exact ⟨B, by subst hk; exact Relation.ReflTransGen.refl, hne.1⟩
@@ -334,8 +326,7 @@ theorem etaExp_NormalNotAbs_normalForm
 /-! ## Structure of a single parallel η-step (Takahashi's Lemma 3.2) -/
 
 /-- Parallel β-reduction lifts through η-expansion towers. -/
-theorem parBeta_etaExp_congr
-  {A A' : Term Var} (h : Parallel A A') (k : ℕ) :
+theorem parBeta_etaExp_congr {A A' : Term Var} (h : Parallel A A') (k : ℕ) :
     Parallel (etaExp^[k] A) (etaExp^[k] A') := by
   induction k with
   | zero => exact h
