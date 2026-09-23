@@ -22,12 +22,12 @@ This file presents 5 postponement theorems for moving η-reduction behind
   `S` with `P ↠β+ S` and `S ↠ηᶠ R`.
 * `commute_etastar_beta`: if `P ↠ηᶠ Q` and `Q ↠βᶠ R`, then there is a term
   `S` with `P ↠βᶠ S` and `S ↠ηᶠ R`.
-* `eta_postpone`: if `P ↠βηᶠ Q`, then there is a term `S` such that
-  `P ↠βᶠ S` and `S ↠ηᶠ Q`.
 * `semiDiamondCommute_eta_beta`: if `P →ηᶠ Q` and `Q ↠β+ R`, then there is a term
   `S` with `P ↠β+ S` and `S ↠ηᶠ R`.
 * `diamondcommute_etaplus_betastar`: if `P ↠ηᶠ Q` and `Q ↠β+ R`, then there is
   a term `S` with `P ↠β+ S` and `S ↠ηᶠ R`.
+* `eta_postpone`: if `P ↠βηᶠ Q`, then there is a term `S` such that
+  `P ↠βᶠ S` and `S ↠ηᶠ Q`.
 
 ## Reference
 
@@ -126,13 +126,6 @@ theorem commute_etastar_beta : Commute (swap FullEta) (FullBeta (Var := Var)) :=
   rw [reflTransGen_swap] at *
   exact reflTransGen_le_of_le ParEta.le_reflTransGen_fullEta _ _ g
 
-theorem eta_postpone {M N : Term Var} (h : M ↠βηᶠ N) : ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
-  have g := (commute_equivalents.out 2 4 rfl rfl).mp (commute_etastar_beta (Var := Var)) N M
-  rw [sup_comm, reflTransGen_swap] at g
-  obtain ⟨L, g, _⟩ := g h
-  rw [reflTransGen_swap] at g
-  grind
-
 /-- If `P →ηᶠ Q` and `Q ↠β+ R`, then there exists `P'` with `P ↠β+  P'` and `P' ↠ηᶠ R`. -/
 theorem semiDiamondCommute_eta_beta : SemiDiamondCommute (swap FullEta) (FullBeta (Var := Var)) :=
   Commute.to_semiDiamondCommute commute_etastar_beta transgen_postpone_eta_beta
@@ -141,6 +134,13 @@ theorem semiDiamondCommute_eta_beta : SemiDiamondCommute (swap FullEta) (FullBet
 theorem diamondcommute_etaplus_betastar :
     DiamondCommute (ReflTransGen (swap FullEta)) (TransGen (FullBeta (Var := Var))) :=
   SemiDiamondCommute.to_diamond_commute semiDiamondCommute_eta_beta
+
+theorem eta_postpone {M N : Term Var} (h : M ↠βηᶠ N) : ∃ L, M ↠βᶠ L ∧ L ↠ηᶠ N := by
+  have g := (commute_equivalents.out 2 4 rfl rfl).mp (commute_etastar_beta (Var := Var)) N M
+  rw [sup_comm, reflTransGen_swap] at g
+  obtain ⟨L, g, _⟩ := g h
+  rw [reflTransGen_swap] at g
+  grind
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
