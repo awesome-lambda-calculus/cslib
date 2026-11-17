@@ -99,7 +99,7 @@ lemma multiapp_openRec {i} :
   | nil => grind
   | cons head tail ih => grind [@ih (M.app head)]
 
-lemma multiapp_fv [DecidableEq Var] : (multiApp M Ns).fv = (Ns.map fv).foldl Union.union M.fv := by
+lemma multiapp_fv [DecidableEq Var] : (multiApp M Ns).fv = (Ns.map fv).foldl (· ∪ ·) M.fv := by
   induction Ns generalizing M with
   | nil => grind
   | cons head tail ih => grind [@ih (M.app head)]

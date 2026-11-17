@@ -64,7 +64,7 @@ inductive ParEtaC : ℕ → Term Var → Term Var → Prop
 
 /-- `ParEtaC` is reflexive at count `0` on locally closed terms. -/
 theorem ParEtaC.refl {M : Term Var} (h : LC M) : ParEtaC 0 M M := by
-  induction n : M.size using Nat.strong_induction_on generalizing M with | h n ih =>
+  induction n : M.size using Nat.strong_induction_on generalizing M with | ind n ih =>
   match h with
   | LC.fvar x => exact ParEtaC.fvar x
   | LC.app h₁ h₂ => exact ParEtaC.app (ih _ (by grind) h₁ rfl) (ih _ (by grind) h₂ rfl)
@@ -217,7 +217,7 @@ def InteractionAt (t : Term Var) : Prop :=
 still parallel-η-reducing to `s'`), or is absorbed — landing back on `t'` with a
 strictly smaller η-count. -/
 theorem interaction (t : Term Var) : InteractionAt t := by
-  induction heq : t.size using Nat.strong_induction_on generalizing t with | h n IH' =>
+  induction heq : t.size using Nat.strong_induction_on generalizing t with | ind n IH' =>
   have IH : ∀ t : Term Var, t.size < n → t.InteractionAt := fun t h =>
     IH' _ (Nat.lt_of_lt_of_eq (by omega) (by rfl)) _ rfl
   clear IH'

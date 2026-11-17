@@ -168,7 +168,7 @@ theorem parEta_inv_app {L A B : Term Var} :
     ParEta L (app A B) ->
     ∃ k A' B', L = etaExp^[k] (app A' B') ∧ ParEta A' A ∧ ParEta B' B := by
   induction n : Term.size L using Nat.strong_induction_on generalizing L A B with
-  | h n ih =>
+  | ind n ih =>
   rintro (h | h | h | h)
   · exact ⟨0, _, _, rfl, h, by assumption⟩
   · rename_i M hM
@@ -185,7 +185,7 @@ theorem parEta_inv_abs {L A : Term Var} :
     ∃ (k : ℕ) (A' : Term Var) (xs : Finset Var), L = etaExp^[k] (Term.abs A') ∧
       ∀ x ∉ xs, ParEta (A' ^ fvar x) (A ^ fvar x) := by
   induction n : Term.size L using Nat.strong_induction_on generalizing L A with
-  | h n ih =>
+  | ind n ih =>
   rintro (h | h | h | h)
   · exact ⟨0, _, h, rfl, by assumption⟩
   · rename_i M hM
@@ -336,8 +336,8 @@ theorem etaExp_NormalNotAbs_normalForm
       apply BetaNfLcNotAbs.lc at hne
       unfold openRec
       rw [open_lc _ _ B hne, open_lc]
-      apply etaExp_app_collapse <;> grind
-      apply etaExp_lc hne
+      · apply etaExp_app_collapse hne (by grind)
+      · apply etaExp_lc hne
 
 
 /-! ## Structure of a single parallel η-step (Takahashi's Lemma 3.2) -/
